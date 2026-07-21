@@ -29,7 +29,7 @@
 - Vibe-Trading 整仓后端：按 CI 约定排除独立 `agent/tests/e2e_backtest` 和真实 LLM 专用 `test_e2e_harness_v2.py` 后，本轮实测为 `6300 passed, 24 skipped`，无失败或错误。24 项 skip 均为已登记的 MySQL／合成因子／Tushare 前置条件，无未知 skip。CI 环境变量 Gate 通过，仅保留一条既有 `os.environ.pop()` 非阻断 warning。
 - T0 合成演练：12/12 通过，证据位于 `docs/evidence/market-morning/t0-local-synthetic-2026-07-21.json`，固定不计为 staging 日。
 - 前端：341 项测试通过，TypeScript 与 production build 通过；覆盖 product/operator lifecycle 并发初始化、官方 Auth0 SDK 配置/PKCE/memory cache/callback 清理/revoke/logout、401、初始化失败重试、邮件深链认证后兑换时序，以及 Demo 只能在 development 启用、状态变更和完整 API 代理路径。
-- 容器运行时：`docker compose --profile market-morning build market-morning-runtime` 已从干净源码真实构建成功，容器内前端 build 与哈希锁定 Python 安装均通过；镜像以 uid 1000 的非 root `vibe` 用户运行，`asyncmy` 和最终 production runtime factory 可导入。worker service 显式禁用共享 API 镜像的 `:8899/live` healthcheck；禁用态容器以 exit 2 和稳定 `market_morning_disabled` 错误码拒绝启动，未访问数据库。
+- 容器运行时：`docker compose --profile market-morning build market-morning-runtime` 已从干净源码真实构建成功，容器内前端 build 与哈希锁定 Python 安装均通过；镜像以 uid 1000 的非 root `vibe` 用户运行，`asyncmy` 和最终 production runtime factory 可导入。worker service 显式禁用共享 API 镜像的 `:8899/live` healthcheck；禁用态容器以 exit 2 和稳定 `market_morning_disabled` 错误码拒绝启动。容器内只读 schema probe 对产品库返回 `Market Morning database schema is not current`，对 acceptance 库返回 `ready`；清空 provider bundle factory 后正式 CLI 以稳定 `production_provider_bundle_factory_missing` 拒绝启动，未运行采集、模型或邮件任务。
 - 本地浏览器 Demo：`npm run dev:market-morning-demo` 固定启动在 `127.0.0.1:5901`；Playwright 已验证朝刊明确显示 synthetic/订正/“不足以判断”、9432 搜索添加后为 4/10、丰田研究笔记保存和邮件提醒设置保存。8 个业务 API 请求均为 200，控制台 0 error/0 warning；证据见 `browser-demo-smoke-2026-07-22.md`，固定不计为 staging 日。
 - 不可变发布候选：新增 17 项专项测试和 CI artifact；clean tree、预期/实际 revision、当前 schema、14 个固定发布源文件（含最终 production runtime factory、运行手册和两份严格证据模板）及 5 份验证输出任一缺失、未跟踪、失配或不可读都会 `blocked`。Market Morning 的计划、ADR、运行手册与隐私安全证据目录已从仓库全局 `docs/` 忽略规则中精确放行；浏览器日志、截图、CodeGraph 索引、`output/` 和本地 zip 仍明确忽略。提交前的脏工作树会被正确拒绝；CI 只能在 clean checkout 上为该提交生成通过的 manifest。输出不包含路径、Git status 原文、URL 或凭据。该 Gate 固定不计为 staging/T1 证据。
 - Staging 日报生产链：新增单项 Gate artifact CLI 与单日 builder；raw probe 只进入 SHA-256，11 项 artifact 必须共享通过的 candidate、release/schema、run、刊期和 JPX calendar 链，任一失败会保留失败日报但固定不计数。相关 release/staging evidence 专项共 60 项通过；当前仍无真实 staging 日报，因此没有提前满足五日 Gate。
@@ -49,4 +49,4 @@
 4. 在已提供的 Alertmanager 路由基线上配置真实 secret-file receiver，完成 warning/critical/resolved、
    silence 到期和双人值班演练，再用 monitoring drill CLI 生成可供每日 `observability` Gate 引用的
    hash-only 证据。
-5. 先让 CI 生成 `status=passed` 的不可变 release candidate manifest；只部署其中的 revision，并用同一 revision 完成连续 5 个真实 staging JPX 交易日，再申请 T1 签字。
+5. 先建立当前账号可写的远端并触发 CI，生成 `status=passed` 的不可变 release candidate manifest；当前 `origin=HKUDS/Vibe-Trading` 对登录账号只有 `READ` 权限，且账号下尚无同名 fork，因此本地分支不能直接推送。只部署通过 manifest 的 revision，并用同一 revision 完成连续 5 个真实 staging JPX 交易日，再申请 T1 签字。
