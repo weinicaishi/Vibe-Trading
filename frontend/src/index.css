@@ -99,3 +99,7 @@
 
 /* RTL: mirror directional icons (chevrons, arrows) automatically */
 [dir="rtl"] .rtl\:flip-x { transform: scaleX(-1); }
+
+.market-morning-serif {
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", serif;
+}

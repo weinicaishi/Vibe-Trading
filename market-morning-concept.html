@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <title>Market Morning — 日本株リサーチの朝刊</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;600;700&family=Shippori+Mincho:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --ink: #18263a;
+        --ink-soft: #56677a;
+        --night: #15253a;
+        --paper: #f6f3eb;
+        --paper-deep: #eee8dc;
+        --sheet: #fffdf8;
+        --line: #d9d4c8;
+        --blue: #1f6090;
+        --blue-pale: #e8f0f2;
+        --teal: #15766d;
+        --teal-pale: #e2f0ec;
+        --red: #ad4d47;
+        --red-pale: #f8e8e4;
+        --gold: #9b6b23;
+        --gold-pale: #f7eedc;
+        --mono: "DM Mono", monospace;
+        --sans: "Noto Sans JP", sans-serif;
+        --serif: "Shippori Mincho", serif;
+        --shadow: 0 20px 42px rgba(24, 38, 58, .09);
+      }
+
+      * { box-sizing: border-box; }
+      html { background: var(--paper); }
+      body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); }
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      button:focus-visible, a:focus-visible { outline: 3px solid #79aed0; outline-offset: 3px; }
+      .app { min-height: 100dvh; display: grid; grid-template-columns: 246px minmax(0, 1fr); }
+
+      .sidebar { min-height: 100dvh; position: sticky; top: 0; height: 100dvh; padding: 25px 15px 18px; display: flex; flex-direction: column; color: #dfe9ed; background: var(--night); overflow: hidden; }
+      .sidebar::after { content: ""; position: absolute; width: 270px; height: 270px; right: -145px; bottom: -116px; border: 1px solid rgba(157, 204, 210, .12); border-radius: 50%; box-shadow: 0 0 0 34px rgba(157, 204, 210, .035), 0 0 0 68px rgba(157, 204, 210, .025); pointer-events: none; }
+      .brand { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; padding: 2px 11px 36px; color: white; text-decoration: none; }
+      .brand-mark { width: 29px; height: 29px; position: relative; display: grid; place-items: center; border: 1px solid #97cad1; color: #c5e7e9; font: 500 12px var(--mono); }
+      .brand-mark::before { content: ""; position: absolute; right: -5px; top: -5px; width: 9px; height: 9px; background: #78b9c1; }
+      .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -.025em; }
+      .brand-name small { display: block; margin-top: 2px; color: #95aebb; font: 400 9px var(--mono); letter-spacing: .12em; }
+      .nav-label { color: #7e95a6; padding: 0 11px 8px; font: 500 9px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+      .nav { position: relative; z-index: 1; display: grid; gap: 3px; }
+      .nav button { border: 0; border-radius: 5px; padding: 10px 11px; display: flex; align-items: center; gap: 11px; background: transparent; color: #adbdc9; text-align: left; font-size: 12px; transition: color .18s, background .18s; }
+      .nav button:hover { color: #fff; background: rgba(255,255,255,.055); }
+      .nav button.active { color: white; background: #27445b; box-shadow: inset 2px 0 0 #8ecbd1; }
+      .nav-number { width: 15px; color: #8ecbd1; font: 500 10px var(--mono); }
+      .sidebar-bottom { position: relative; z-index: 1; margin-top: auto; }
+      .small-profile { display: flex; align-items: center; gap: 9px; border-top: 1px solid rgba(201, 222, 227, .16); padding: 17px 8px 0; }
+      .profile-avatar { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: #b6d6d8; color: #254050; font: 500 9px var(--mono); }
+      .profile-text { line-height: 1.35; font-size: 10px; }
+      .profile-text small { color: #8da6b4; font: 400 9px var(--mono); }
+
+      main { min-width: 0; max-width: 1580px; width: 100%; margin: 0 auto; padding: 0 36px 38px; }
+      .topbar { min-height: 77px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
+      .status { display: flex; align-items: center; gap: 9px; color: var(--ink-soft); font-size: 11px; }
+      .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #55a89d; box-shadow: 0 0 0 4px rgba(85, 168, 157, .12); }
+      .edition { color: #647487; font: 500 10px var(--mono); letter-spacing: .03em; }
+      .top-actions { display: flex; align-items: center; gap: 11px; }
+      .data-time { color: #788696; font: 10px var(--mono); }
+      .quiet-button { border: 1px solid var(--line); padding: 8px 10px; background: transparent; color: var(--ink-soft); font-size: 11px; }
+
+      .hero { position: relative; padding: 34px 0 29px; display: grid; grid-template-columns: minmax(0, 1fr) 298px; gap: 32px; }
+      .eyebrow { color: var(--blue); font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+      h1 { max-width: 800px; margin: 8px 0 11px; font: 700 clamp(31px, 4vw, 50px)/1.2 var(--serif); letter-spacing: -.055em; }
+      .hero-copy { margin: 0; color: var(--ink-soft); font-size: 13px; line-height: 1.9; }
+      .morning-note { align-self: end; position: relative; margin-bottom: 4px; padding: 17px 17px 16px; background: var(--blue-pale); border-left: 3px solid var(--blue); }
+      .morning-note::before { content: "07:20"; position: absolute; top: -10px; left: 13px; padding: 0 5px; color: var(--blue); background: var(--paper); font: 500 9px var(--mono); }
+      .morning-note strong { display: block; margin-bottom: 5px; font-size: 12px; }
+      .morning-note p { margin: 0; color: #536b7e; font-size: 11px; line-height: 1.7; }
+
+      .today-brief { border-top: 1px solid var(--ink); display: grid; grid-template-columns: 1.28fr repeat(4, 1fr); background: var(--sheet); box-shadow: 0 7px 19px rgba(40, 51, 70, .025); }
+      .brief-intro, .metric { min-height: 113px; padding: 17px; border-right: 1px solid var(--line); }
+      .brief-intro { display: flex; flex-direction: column; justify-content: space-between; }
+      .brief-intro h2 { margin: 0; font-size: 15px; letter-spacing: -.03em; }
+      .brief-intro p { margin: 0; color: #788696; font-size: 10px; line-height: 1.55; }
+      .metric { position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+      .metric:last-child { border-right: 0; }
+      .metric-name { color: #778798; font: 500 9px var(--mono); letter-spacing: .06em; }
+      .metric strong { position: relative; z-index: 1; font: 500 17px var(--mono); letter-spacing: -.08em; }
+      .metric small { position: relative; z-index: 1; font: 500 10px var(--mono); }
+      .up { color: var(--teal); } .down { color: var(--red); } .neutral { color: var(--gold); }
+      .spark { position: absolute; right: 7px; bottom: 9px; width: 73px; opacity: .72; }
+
+      .workspace { display: grid; grid-template-columns: minmax(0, 1.52fr) minmax(295px, .77fr); gap: 28px; padding-top: 29px; }
+      .section-kicker { margin-bottom: 8px; color: #7b8994; font: 500 9px var(--mono); letter-spacing: .12em; }
+      .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 14px; margin-bottom: 14px; }
+      h2 { letter-spacing: -.035em; }
+      .section-heading h2 { margin: 0; font-size: 18px; }
+      .section-heading p { margin: 0; color: #6d7c8c; font-size: 11px; }
+      .link-button { padding: 0 0 2px; border: 0; border-bottom: 1px solid #aab5b9; color: var(--blue); background: transparent; white-space: nowrap; font: 500 10px var(--mono); }
+
+      .watchlist { border-top: 1px solid var(--ink); background: var(--sheet); box-shadow: 0 5px 18px rgba(40, 51, 70, .025); }
+      .watchlist-head, .stock-row { display: grid; grid-template-columns: 1.06fr .64fr 1.45fr .45fr 75px; gap: 13px; align-items: center; }
+      .watchlist-head { color: #82909a; padding: 10px 15px; border-bottom: 1px solid var(--line); font: 500 9px var(--mono); letter-spacing: .06em; }
+      .stock-row { width: 100%; min-height: 79px; padding: 12px 15px; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--ink); text-align: left; transition: background .18s; }
+      .stock-row:last-child { border-bottom: 0; }
+      .stock-row:hover, .stock-row.selected { background: #edf5f5; }
+      .stock-row.selected { box-shadow: inset 3px 0 0 var(--teal); }
+      .stock-name strong, .move strong { display: block; font-size: 13px; }
+      .stock-name small, .move small { display: block; margin-top: 3px; color: #7a8998; font: 400 9px var(--mono); }
+      .reason { color: #42576b; font-size: 11px; line-height: 1.55; }
+      .risk-tag { display: inline-flex; width: max-content; align-items: center; border: 1px solid #dbcda8; padding: 4px 6px; color: #806423; background: var(--gold-pale); font-size: 9px; white-space: nowrap; }
+      .risk-tag.red { border-color: #e4bbb4; color: #a34d48; background: var(--red-pale); }
+      .open-detail { color: var(--blue); text-align: right; font: 500 9px var(--mono); white-space: nowrap; }
+
+      .research-card { position: relative; margin-top: 19px; padding: 23px; overflow: hidden; color: #edf4f4; background: var(--night); }
+      .research-card::after { content: ""; position: absolute; width: 340px; height: 340px; right: -177px; bottom: -196px; border: 1px solid rgba(161, 211, 210, .19); border-radius: 50%; box-shadow: 0 0 0 28px rgba(161, 211, 210, .05), 0 0 0 56px rgba(161, 211, 210, .025); }
+      .research-card > * { position: relative; z-index: 1; }
+      .research-meta { color: #8fc1c5; font: 500 9px var(--mono); letter-spacing: .11em; }
+      .research-layout { display: grid; grid-template-columns: 1.18fr .82fr; gap: 25px; padding-top: 12px; }
+      .research-card h2 { margin: 0 0 9px; font: 700 26px/1.38 var(--serif); letter-spacing: -.04em; }
+      .research-card p { margin: 0; color: #b8c9d0; font-size: 11px; line-height: 1.85; }
+      .thesis-toggle { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+      .thesis-toggle button { border: 1px solid rgba(172, 214, 215, .32); padding: 7px 9px; color: #cae1e1; background: transparent; font-size: 10px; }
+      .thesis-toggle button:hover { background: rgba(155, 211, 211, .13); }
+      .evidence { padding-left: 20px; border-left: 1px solid rgba(210, 230, 230, .18); }
+      .evidence-title { color: #8fc1c5; font: 500 9px var(--mono); letter-spacing: .1em; }
+      .source-row { display: grid; grid-template-columns: 50px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(210, 230, 230, .15); }
+      .source-row:last-child { border-bottom: 0; }
+      .source-row time { color: #90aeb9; font: 400 9px var(--mono); }
+      .source-row span { color: #d9e7e8; font-size: 10px; line-height: 1.5; }
+
+      .rail { min-width: 0; }
+      .rail-block { padding: 0 0 21px; margin-bottom: 21px; border-bottom: 1px solid var(--line); }
+      .rail-block:last-child { margin-bottom: 0; border-bottom: 0; }
+      .rail-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+      .rail-title h2 { margin: 0; font-size: 14px; }
+      .rail-title span { color: #8a96a0; font: 400 9px var(--mono); }
+      .risk-item { padding: 11px 0; border-top: 1px solid var(--line); }
+      .risk-item strong { display: flex; justify-content: space-between; font-size: 11px; }
+      .risk-item strong em { font: 500 9px var(--mono); font-style: normal; }
+      .risk-item p { margin: 5px 0 0; color: #657587; font-size: 10px; line-height: 1.62; }
+      .source-list { border-top: 1px solid var(--line); }
+      .source-link { width: 100%; padding: 11px 0; display: flex; align-items: center; justify-content: space-between; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); background: transparent; text-align: left; font-size: 11px; }
+      .source-link span { color: var(--blue); font: 500 9px var(--mono); }
+
+      .roadmap { border: 1px solid #cddedc; background: #f0f7f5; padding: 15px; }
+      .roadmap small { color: var(--teal); font: 500 9px var(--mono); letter-spacing: .1em; }
+      .roadmap h2 { margin: 5px 0 6px; font: 700 19px var(--serif); }
+      .roadmap p { margin: 0; color: #506f6d; font-size: 10px; line-height: 1.7; }
+      .roadmap button { width: 100%; margin-top: 12px; padding: 8px; border: 1px solid #a6ccc6; color: #266f68; background: transparent; font-size: 10px; }
+
+      .toolbox { margin-top: 34px; padding-top: 23px; border-top: 1px solid var(--line); }
+      .toolbox-header { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin-bottom: 15px; }
+      .toolbox-header h2 { margin: 0; font: 700 25px var(--serif); letter-spacing: -.04em; }
+      .toolbox-header p { max-width: 510px; margin: 0; color: #687889; font-size: 11px; line-height: 1.75; }
+      .tool-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+      .tool-card { min-height: 190px; padding: 17px; position: relative; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: rgba(255,253,248,.5); transition: background .18s, transform .18s; }
+      .tool-card:hover { z-index: 1; background: var(--sheet); box-shadow: var(--shadow); transform: translateY(-3px); }
+      .tool-stage { display: inline-flex; margin-bottom: 20px; padding: 4px 6px; font: 500 9px var(--mono); letter-spacing: .04em; }
+      .now { color: #246e66; background: var(--teal-pale); } .next { color: #225b88; background: var(--blue-pale); } .later { color: #806423; background: var(--gold-pale); }
+      .tool-icon { width: 30px; height: 30px; margin-bottom: 14px; color: var(--blue); }
+      .tool-card h3 { margin: 0 0 6px; font-size: 13px; letter-spacing: -.02em; }
+      .tool-card p { margin: 0; color: #6a7989; font-size: 10px; line-height: 1.7; }
+      .tool-card .arrow { position: absolute; right: 16px; bottom: 13px; color: #748899; font: 500 12px var(--mono); }
+      .tool-card.coming { background: rgba(246,243,235,.55); }
+
+      .pro-banner { margin-top: 28px; padding: 25px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-top: 2px solid var(--ink); background: #e5edf0; }
+      .pro-banner h2 { margin: 0 0 5px; font: 700 24px var(--serif); letter-spacing: -.035em; }
+      .pro-banner p { margin: 0; color: #5d7284; font-size: 11px; }
+      .pro-banner button { flex: 0 0 auto; border: 0; padding: 11px 15px; color: white; background: var(--blue); font-size: 11px; font-weight: 600; box-shadow: 0 7px 15px rgba(31,96,144,.19); }
+      footer { padding-top: 20px; color: #82909a; font: 9px/1.7 var(--mono); }
+
+      .toast { position: fixed; z-index: 20; bottom: 22px; left: 50%; padding: 11px 14px; color: white; background: var(--night); box-shadow: var(--shadow); font-size: 11px; transform: translate(-50%, 120px); transition: transform .25s ease; }
+      .toast.show { transform: translate(-50%, 0); }
+      .modal-backdrop { display: none; position: fixed; z-index: 19; inset: 0; align-items: center; justify-content: center; padding: 18px; background: rgba(21, 37, 58, .42); }
+      .modal-backdrop.open { display: flex; }
+      .modal { width: min(480px, 100%); padding: 25px; border-top: 3px solid var(--teal); background: var(--sheet); box-shadow: var(--shadow); }
+      .modal .eyebrow { color: var(--teal); }
+      .modal h2 { margin: 7px 0; font: 700 25px var(--serif); }
+      .modal p { color: #5a6c7d; font-size: 12px; line-height: 1.8; }
+      .modal button { float: right; border: 1px solid var(--line); padding: 8px 11px; background: transparent; color: var(--ink); font-size: 11px; }
+
+      @media (max-width: 1200px) { .app { grid-template-columns: 74px minmax(0, 1fr); } .sidebar { padding: 22px 9px; } .brand { justify-content: center; padding: 2px 0 31px; } .brand-name, .nav-label, .nav button span:not(.nav-number), .small-profile { display: none; } .nav button { justify-content: center; } .nav-number { width: auto; } main { padding-inline: 27px; } .watchlist-head, .stock-row { grid-template-columns: 1.05fr .63fr 1.3fr .48fr 60px; gap: 9px; } .tool-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 900px) { .hero { grid-template-columns: 1fr; gap: 16px; } .morning-note { max-width: 480px; } .today-brief { grid-template-columns: 1fr 1fr 1fr; } .brief-intro { grid-column: 1 / -1; min-height: auto; flex-direction: row; align-items: center; gap: 15px; } .metric:nth-child(4) { border-right: 0; } .metric:last-child { grid-column: 2 / 4; } .workspace { grid-template-columns: 1fr; } .rail { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; } .rail-block { margin: 0; border-bottom: 0; } .toolbox-header { display: block; } .toolbox-header p { margin-top: 7px; } }
+      @media (max-width: 680px) { .app { display: block; } .sidebar { position: static; height: auto; min-height: auto; padding: 12px 12px; flex-direction: row; align-items: center; overflow: auto; } .brand { flex: 0 0 auto; padding: 0 14px 0 2px; } .nav { display: flex; gap: 2px; } .nav button { flex: 0 0 auto; padding: 9px; } main { padding: 0 16px 27px; } .topbar { min-height: 61px; } .data-time { display: none; } .hero { padding: 25px 0 22px; } h1 { font-size: 35px; } .hero-copy { font-size: 12px; } .today-brief { grid-template-columns: 1fr 1fr; } .brief-intro { grid-column: 1 / -1; display: block; } .brief-intro p { margin-top: 7px; } .metric:nth-child(4) { border-right: 1px solid var(--line); } .metric:nth-child(3), .metric:last-child { border-right: 0; } .metric:last-child { grid-column: auto; } .workspace { padding-top: 24px; } .watchlist-head { display: none; } .stock-row { grid-template-columns: 1fr auto; min-height: auto; padding: 14px; gap: 7px; } .reason { grid-column: 1 / -1; padding-top: 3px; } .risk-tag { grid-column: 1; } .open-detail { grid-column: 2; grid-row: 1; } .move { grid-column: 2; grid-row: 2; text-align: right; } .research-layout { grid-template-columns: 1fr; gap: 20px; } .evidence { padding: 17px 0 0; border-left: 0; border-top: 1px solid rgba(210, 230, 230, .18); } .rail { display: block; } .rail-block { padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); } .tool-grid { grid-template-columns: 1fr; } .tool-card { min-height: 160px; } .tool-stage { margin-bottom: 16px; } .pro-banner { display: block; } .pro-banner button { width: 100%; margin-top: 17px; } }
+      @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar" aria-label="主要ナビゲーション">
+        <a class="brand" href="#top"><span class="brand-mark">M</span><span class="brand-name">Market Morning<small>RESEARCH DESK</small></span></a>
+        <div class="nav-label">My workspace</div>
+        <nav class="nav">
+          <button class="active" data-nav="朝刊"><span class="nav-number">01</span><span>今日の朝刊</span></button>
+          <button data-nav="注目銘柄"><span class="nav-number">02</span><span>注目銘柄</span></button>
+          <button data-nav="リサーチノート"><span class="nav-number">03</span><span>リサーチノート</span></button>
+          <button data-nav="振り返り"><span class="nav-number">04</span><span>振り返り</span></button>
+        </nav>
+        <div class="sidebar-bottom"><div class="small-profile"><span class="profile-avatar">KT</span><span class="profile-text">Kentaのリサーチ<br /><small>FREE PLAN</small></span></div></div>
+      </aside>
+
+      <main id="top">
+        <header class="topbar"><div class="status"><span class="status-dot"></span>東京市場　開場前</div><div class="top-actions"><span class="data-time">更新 07:18 JST</span><button class="quiet-button" data-open-modal>プランを見る</button></div></header>
+
+        <section class="hero">
+          <div><div class="eyebrow">Tuesday / 21 July 2026 · 07:20 JST</div><h1>市場のノイズを、<br />自分の論点に戻す。</h1><p class="hero-copy">米国市場から日本の寄り付きまで。今日の地合い、注目銘柄、確認すべき一次情報を、<br />あなたの投資判断の前に静かに整理します。</p></div>
+          <aside class="morning-note"><strong>今朝の読み方</strong><p>値動きの予想ではなく、「今日、何を確認するか」から始めます。朝刊の根拠はすべて一次情報へ戻れます。</p></aside>
+        </section>
+
+        <section class="today-brief" aria-labelledby="brief-title">
+          <div class="brief-intro"><div><div class="section-kicker">TODAY'S CONTEXT</div><h2 id="brief-title">開場前の地合い</h2></div><p>日米株・為替を、<br />注目銘柄の前提として読む。</p></div>
+          <article class="metric"><span class="metric-name">NIKKEI 225 FUTURES</span><strong>39,842</strong><small class="up">+0.42%</small><svg class="spark" viewBox="0 0 74 30"><path d="M1 24 C10 25,13 17,21 20 S31 13,38 17 S49 9,57 12 S66 5,73 4" fill="none" stroke="#15766d" stroke-width="1.7"/></svg></article>
+          <article class="metric"><span class="metric-name">S&amp;P 500</span><strong>6,324</strong><small class="up">+0.18%</small><svg class="spark" viewBox="0 0 74 30"><path d="M1 21 C10 13,14 22,23 18 S31 18,38 11 S48 14,56 9 S65 11,73 5" fill="none" stroke="#15766d" stroke-width="1.7"/></svg></article>
+          <article class="metric"><span class="metric-name">NASDAQ</span><strong>20,864</strong><small class="down">−0.11%</small><svg class="spark" viewBox="0 0 74 30"><path d="M1 7 C10 10,12 5,21 12 S32 15,39 13 S49 22,57 18 S65 24,73 23" fill="none" stroke="#ad4d47" stroke-width="1.7"/></svg></article>
+          <article class="metric"><span class="metric-name">USD / JPY</span><strong>156.32</strong><small class="neutral">+0.07%</small><svg class="spark" viewBox="0 0 74 30"><path d="M1 17 C9 16,15 18,23 16 S31 15,39 16 S48 12,56 14 S66 12,73 13" fill="none" stroke="#9b6b23" stroke-width="1.7"/></svg></article>
+        </section>
+
+        <section class="workspace">
+          <div>
+            <div class="section-heading"><div><div class="section-kicker">YOUR DAILY READING</div><h2>今朝、読むべき注目銘柄</h2><p>変化があった銘柄だけを、確認理由と一緒に表示。</p></div><button class="link-button" id="refresh">更新する ↻</button></div>
+            <div class="watchlist" aria-label="注目銘柄">
+              <div class="watchlist-head"><span>銘柄</span><span>前日比</span><span>今朝の確認理由</span><span>リスク</span><span></span></div>
+              <button class="stock-row selected" data-stock="mitsubishi" aria-pressed="true"><span class="stock-name"><strong>三菱商事</strong><small>8058 · TSE</small></span><span class="move"><strong class="up">+0.9%</strong><small>前日終値比</small></span><span class="reason">資源価格と為替の組み合わせを、決算前に再確認。</span><span class="risk-tag">決算前</span><span class="open-detail">根拠 →</span></button>
+              <button class="stock-row" data-stock="toyota" aria-pressed="false"><span class="stock-name"><strong>トヨタ自動車</strong><small>7203 · TSE</small></span><span class="move"><strong class="up">+0.4%</strong><small>前日終値比</small></span><span class="reason">円安の追い風と、米国自動車セクターの温度差。</span><span class="risk-tag">為替</span><span class="open-detail">根拠 →</span></button>
+              <button class="stock-row" data-stock="tel" aria-pressed="false"><span class="stock-name"><strong>東京エレクトロン</strong><small>8035 · TSE</small></span><span class="move"><strong class="down">−0.3%</strong><small>前日終値比</small></span><span class="reason">米国半導体株の小幅安を、事業前提と切り分ける。</span><span class="risk-tag red">変動大</span><span class="open-detail">根拠 →</span></button>
+            </div>
+
+            <article class="research-card" aria-live="polite"><div class="research-meta">RESEARCH NOTE · <span id="stock-code">8058</span></div><div class="research-layout"><div><h2 id="research-title">三菱商事：<br />今日確認する論点</h2><p id="research-copy">外部環境は追い風に見えます。ただし今朝は、株価の方向を断定するより、資源価格と為替が次回決算の前提を支えているかを確認する時間です。</p><div class="thesis-toggle"><button data-note="投資論点">投資論点を開く</button><button data-note="決算資料">決算資料と照合</button></div></div><div class="evidence"><div class="evidence-title">FACTS / 一次情報の要約</div><div id="source-list"><div class="source-row"><time>06:40</time><span>原油先物は前日比で小幅高。</span></div><div class="source-row"><time>07:02</time><span>ドル円は156円台前半で推移。</span></div><div class="source-row"><time>07:15</time><span>次回の決算予定日を確認。</span></div></div></div></div></article>
+          </div>
+
+          <aside class="rail" aria-label="リスクと一次情報">
+            <section class="rail-block"><div class="rail-title"><h2>今日のリスク</h2><span>CHECK FIRST</span></div><div class="risk-item"><strong>為替の急変 <em class="down">HIGH</em></strong><p>ドル円156円台。輸出関連は、方向ではなく感応度を確認。</p></div><div class="risk-item"><strong>決算の集中 <em class="neutral">WATCH</em></strong><p>数字より、通期前提と会社の説明に変化があるか。</p></div><div class="risk-item"><strong>米国金利 <em class="neutral">WATCH</em></strong><p>グロース株の動きが半導体関連へ波及する可能性。</p></div></section>
+            <section class="rail-block"><div class="rail-title"><h2>一次情報へ</h2><span>VERIFY</span></div><div class="source-list"><button class="source-link" data-source="企業IR">企業 IR <span>OPEN ↗</span></button><button class="source-link" data-source="TDnet">TDnet 開示 <span>OPEN ↗</span></button><button class="source-link" data-source="決算資料">決算資料 <span>OPEN ↗</span></button></div></section>
+            <section class="roadmap"><small>YOUR NEXT DESK</small><h2>投資論点を残す。</h2><p>朝刊で気づいたことを、銘柄ごとの根拠・反証・次の確認事項として蓄積します。</p><button data-note="投資論点">機能の考え方を見る</button></section>
+          </aside>
+        </section>
+
+        <section class="toolbox" aria-labelledby="toolbox-title"><div class="toolbox-header"><div><div class="eyebrow">A RESEARCH DESK, NOT A TOOL WALL</div><h2 id="toolbox-title">深めるための、次の4つ。</h2></div><p>表では「機能」を並べず、日々の調査がどのように深まるかを示します。取引を促す仕組みではなく、根拠と振り返りを積み重ねる研究環境です。</p></div><div class="tool-grid">
+          <article class="tool-card"><span class="tool-stage now">MVP / NOW</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 4.5h14.5v21H5z"/><path d="M9 10h7M9 14h6M9 18h4"/><path d="M20 20l5 5M25 20a5 5 0 1 0-10 0 5 5 0 0 0 10 0Z"/></svg><h3>決算・開示を読む</h3><p>IR・TDnet・決算資料を、注目銘柄の論点と照合して要約。</p><span class="arrow">↗</span></article>
+          <article class="tool-card"><span class="tool-stage now">MVP / NOW</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 23.5V6.5h20v17"/><path d="M9 19l4-5 4 2 5-7"/><path d="M5 23.5h20"/></svg><h3>自分の投資論点</h3><p>買いではなく、「なぜ注目するか」「何が反証か」を残す。</p><span class="arrow">↗</span></article>
+          <article class="tool-card"><span class="tool-stage next">NEXT / V1</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 23.5h20M7 20V12h4v8M13 20V7h4v13M19 20v-5h4v5"/><path d="M5 7.5c5-3.5 8 2 12-1s5-3 8-1"/></svg><h3>估值锚点</h3><p>将 PE、PBR、ROE 和公司前提放在一起，而非单独给出结论。</p><span class="arrow">↗</span></article>
+          <article class="tool-card"><span class="tool-stage next">NEXT / V1</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M8 5.5h14v19H8z"/><path d="M11 10h8M11 14h8M11 18h5"/><path d="m4 8 4-3v19l-4 2z"/></svg><h3>每周复盘</h3><p>导入交易记录后，看持仓集中、持有期和行为偏差。</p><span class="arrow">↗</span></article>
+          <article class="tool-card coming"><span class="tool-stage later">LATER / V1.5</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 10h7v7H5zM18 5h7v7h-7zM18 18h7v7h-7z"/><path d="m12 13 6-5M12 14l6 7"/></svg><h3>产业链影响图</h3><p>从日本制造业、汽车、半导体的事件，回到受影响的公司与假设。</p><span class="arrow">↗</span></article>
+          <article class="tool-card coming"><span class="tool-stage later">LATER / V2</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="15" cy="15" r="9.5"/><path d="M15 5.5v19M5.5 15h19M8.3 8.3c2.6 2.2 10.8 2.2 13.4 0M8.3 21.7c2.6-2.2 10.8-2.2 13.4 0"/></svg><h3>组合风险地图</h3><p>把集中度、行业与汇率暴露画成可解释的场景风险。</p><span class="arrow">↗</span></article>
+          <article class="tool-card coming"><span class="tool-stage later">ADVANCED</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 21.5c3-10 7-11 10-6s5 5 10-7"/><path d="M5 5.5v19h20"/></svg><h3>期权风险读法</h3><p>只面向进阶用户，用 Greeks 解释风险敞口，不作为交易指令。</p><span class="arrow">↗</span></article>
+          <article class="tool-card coming"><span class="tool-stage later">NOT A PRIORITY</span><svg class="tool-icon" viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M5 23.5 25 6.5M5 6.5l20 17"/></svg><h3>信号策略与自动连接</h3><p>不作为面向个人用户的产品主线；不承诺荐股或自动执行。</p><span class="arrow">—</span></article>
+        </div></section>
+
+        <section class="pro-banner"><div><div class="eyebrow">MEMBERSHIP CONCEPT</div><h2>每天，让关注列表自己变得更清楚。</h2><p>为你的关注股沉淀朝刊、证据、论点与风险；不是推荐买卖的订阅。</p></div><button data-open-modal>7日間、朝刊を試す</button></section>
+        <footer>CONCEPT SCREEN · 数据和事件仅用于演示信息架构。正式运营前需完成市场数据许可、日本金融监管与收费流程审查。</footer>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal"><div class="eyebrow">MEMBERSHIP CONCEPT</div><h2 id="modal-title">朝刊を、<br />自分の投資論点につなげる。</h2><p>订阅价值来自「关注名单每天有哪些需要验证的变化」及其可追溯来源，而不是买卖指令或目标价。概念页中不会收集支付或个人资料。</p><button id="close-modal">閉じる</button></div></div>
+    <div class="toast" id="toast" role="status"></div>
+
+    <script>
+      const stocks = {
+        mitsubishi: { code: "8058", title: "三菱商事：\n今日確認する論点", copy: "外部環境は追い風に見えます。ただし今朝は、株価の方向を断定するより、資源価格と為替が次回決算の前提を支えているかを確認する時間です。", sources: [["06:40", "原油先物は前日比で小幅高。"], ["07:02", "ドル円は156円台前半で推移。"], ["07:15", "次回の決算予定日を確認。"]] },
+        toyota: { code: "7203", title: "トヨタ自動車：\n円安だけで読まない。", copy: "輸出企業にとって円安は追い風になり得ますが、米国の販売環境と地域別の開示を合わせて読む必要があります。今朝は、為替の変化が既存の事業前提とどう重なるかを確認します。", sources: [["06:31", "ドル円は前営業日終値より円安方向。"], ["06:55", "米国自動車セクターはまちまち。"], ["07:12", "直近の月次販売データを確認。"]] },
+        tel: { code: "8035", title: "東京エレクトロン：\n米国半導体株の次を読む。", copy: "米国の半導体関連株は小幅安でした。寄り付きの反応だけでなく、設備投資見通しや受注に関する公開情報に変化があるかを切り分けて確認します。", sources: [["05:58", "米国半導体指数は小幅安。"], ["06:50", "主要顧客の決算予定を確認。"], ["07:16", "直近の業界見通しに新規開示なし。"]] }
+      };
+      const $ = selector => document.querySelector(selector);
+      const toast = $('#toast');
+      function showToast(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2500); }
+      document.querySelectorAll('.stock-row').forEach(row => row.addEventListener('click', () => {
+        const stock = stocks[row.dataset.stock];
+        document.querySelectorAll('.stock-row').forEach(item => { item.classList.remove('selected'); item.setAttribute('aria-pressed', 'false'); });
+        row.classList.add('selected'); row.setAttribute('aria-pressed', 'true');
+        $('#stock-code').textContent = stock.code;
+        $('#research-title').innerHTML = stock.title.replace('\n', '<br />');
+        $('#research-copy').textContent = stock.copy;
+        $('#source-list').innerHTML = stock.sources.map(([time, text]) => `<div class="source-row"><time>${time}</time><span>${text}</span></div>`).join('');
+      }));
+      document.querySelectorAll('.nav button').forEach(button => button.addEventListener('click', () => { document.querySelectorAll('.nav button').forEach(item => item.classList.remove('active')); button.classList.add('active'); showToast(`${button.dataset.nav} の画面を設計する想定です。`); }));
+      $('#refresh').addEventListener('click', () => showToast('コンセプト用に更新時刻を再表示しました。'));
+      document.querySelectorAll('[data-source]').forEach(button => button.addEventListener('click', () => showToast(`${button.dataset.source} の一次情報ビューを開く想定です。`)));
+      document.querySelectorAll('[data-note]').forEach(button => button.addEventListener('click', () => showToast('投資論点の詳細画面を開く想定です。')));
+      const modal = $('#modal');
+      document.querySelectorAll('[data-open-modal]').forEach(button => button.addEventListener('click', () => modal.classList.add('open')));
+      $('#close-modal').addEventListener('click', () => modal.classList.remove('open'));
+      modal.addEventListener('click', event => { if (event.target === modal) modal.classList.remove('open'); });
+    </script>
+  </body>
+</html>

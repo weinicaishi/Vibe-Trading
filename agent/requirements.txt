@@ -10,6 +10,7 @@ langgraph>=1.2.5,<1.3
 langgraph-checkpoint>=2.1.0,<5
 python-dotenv>=1.0.0
 httpx>=0.28.0
+PyJWT[crypto]>=2.8.0,<3
 oauth-cli-kit>=0.1.3
 
 # Data & Computation
@@ -25,6 +26,8 @@ python-docx>=1.1.0
 python-pptx>=0.6.23
 pypdfium2>=4.0.0
 Pillow>=12.2.0
+# Local OCR fallback for scanned/image PDFs. Pages remain on the device.
+rapidocr-onnxruntime==1.4.4 ; python_version < "3.13"
 
 # ML Strategy
 scikit-learn>=1.3.0
@@ -48,6 +51,9 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 websockets>=12.0
 pydantic>=2.0.0
+SQLAlchemy[asyncio]>=2.0.36,<3
+alembic>=1.14.0,<2
+asyncmy>=0.2.10,<1
 python-multipart>=0.0.18
 sse-starlette>=1.6.0
 

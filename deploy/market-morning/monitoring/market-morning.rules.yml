@@ -1,0 +1,61 @@
+groups:
+  - name: market-morning-operations
+    interval: 30s
+    rules:
+      - alert: MarketMorningCriticalCondition
+        expr: market_morning_operations_alert_count{severity="critical"} > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: market-morning
+          owner: market-morning-operations
+        annotations:
+          summary: "Market Morning critical condition"
+          description: "Stable condition code {{ $labels.code }} is active. Follow the Market Morning operations runbook."
+
+      - alert: MarketMorningWarningCondition
+        expr: market_morning_operations_alert_count{severity="warning"} > 0
+        for: 0m
+        labels:
+          severity: warning
+          service: market-morning
+          owner: market-morning-operations
+        annotations:
+          summary: "Market Morning warning condition"
+          description: "Stable condition code {{ $labels.code }} is active. Follow the Market Morning operations runbook."
+
+      - alert: MarketMorningMetricsScrapeDown
+        expr: up{job="market-morning-operations"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: market-morning
+          owner: market-morning-operations
+          code: metrics_scrape_down
+        annotations:
+          summary: "Market Morning metrics scrape is down"
+          description: "Prometheus has failed to scrape the protected operations endpoint for two minutes."
+
+      - alert: MarketMorningMetricsSnapshotMissing
+        expr: absent(market_morning_operations_snapshot_timestamp_seconds)
+        for: 2m
+        labels:
+          severity: critical
+          service: market-morning
+          owner: market-morning-operations
+          code: metrics_snapshot_missing
+        annotations:
+          summary: "Market Morning metrics snapshot is missing"
+          description: "The protected scrape target is not exposing an operations snapshot timestamp."
+
+      - alert: MarketMorningMetricsSnapshotStale
+        expr: time() - market_morning_operations_snapshot_timestamp_seconds > 600
+        for: 2m
+        labels:
+          severity: critical
+          service: market-morning
+          owner: market-morning-operations
+          code: metrics_snapshot_stale
+        annotations:
+          summary: "Market Morning metrics snapshot is stale"
+          description: "The operations snapshot timestamp has been older than ten minutes for two minutes."

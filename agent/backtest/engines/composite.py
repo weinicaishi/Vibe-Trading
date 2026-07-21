@@ -28,6 +28,11 @@ def _build_rule_engines(config: dict, codes: List[str]) -> Dict[str, BaseEngine]
     engines: Dict[str, BaseEngine] = {}
 
     for market in markets:
+        if market == "global_index":
+            raise ValueError(
+                "INDEX_NOT_TRADABLE: .INDEX instruments cannot be used as "
+                "backtest order instruments"
+            )
         if market == "a_share":
             from backtest.engines.china_a import ChinaAEngine
             engines["a_share"] = ChinaAEngine(config)

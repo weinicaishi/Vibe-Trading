@@ -207,25 +207,182 @@ class APIConfig(_EnvBase):
     cors_origins: str = Field(alias="CORS_ORIGINS", default="")
     api_allowed_hosts: str = Field(alias="API_ALLOWED_HOSTS", default="")
     enable_session_runtime: EnvBool = Field(alias="ENABLE_SESSION_RUNTIME", default=True)
+    market_indices_enabled: EnvBool = Field(
+        alias="VIBE_MARKET_INDICES_ENABLED",
+        default=False,
+    )
     vibe_trading_trust_docker_loopback: EnvBool = Field(
-        alias="VIBE_TRADING_TRUST_DOCKER_LOOPBACK", default=False,
+        alias="VIBE_TRADING_TRUST_DOCKER_LOOPBACK",
+        default=False,
     )
     vibe_trading_enable_shell_tools: EnvBool = Field(
-        alias="VIBE_TRADING_ENABLE_SHELL_TOOLS", default=False,
+        alias="VIBE_TRADING_ENABLE_SHELL_TOOLS",
+        default=False,
     )
     vibe_trading_allowed_file_roots: str = Field(
-        alias="VIBE_TRADING_ALLOWED_FILE_ROOTS", default="",
+        alias="VIBE_TRADING_ALLOWED_FILE_ROOTS",
+        default="",
     )
     vibe_trading_allowed_write_roots: str = Field(
-        alias="VIBE_TRADING_ALLOWED_WRITE_ROOTS", default="",
+        alias="VIBE_TRADING_ALLOWED_WRITE_ROOTS",
+        default="",
     )
     vibe_trading_allowed_run_roots: str = Field(
-        alias="VIBE_TRADING_ALLOWED_RUN_ROOTS", default="",
+        alias="VIBE_TRADING_ALLOWED_RUN_ROOTS",
+        default="",
     )
     vibe_trading_api_url: str = Field(
-        alias="VIBE_TRADING_API_URL", default="http://127.0.0.1:8000",
+        alias="VIBE_TRADING_API_URL",
+        default="http://127.0.0.1:8000",
     )
     futu_trade_pwd_md5: str = Field(alias="FUTU_TRADE_PWD_MD5", default="")
+
+
+# ---------------------------------------------------------------------------
+# Market Morning product
+# ---------------------------------------------------------------------------
+
+
+class MarketMorningConfig(_EnvBase):
+    """Isolated configuration for the opt-in Market Morning product vertical.
+
+    The feature is intentionally closed by default.  Existing Vibe-Trading
+    deployments must not need a product database merely because the package
+    contains the Market Morning modules.
+    """
+
+    enabled: EnvBool = Field(alias="VIBE_MARKET_MORNING_ENABLED", default=False)
+    synthetic_edition_enabled: EnvBool = Field(
+        alias="VIBE_MARKET_MORNING_SYNTHETIC_EDITION_ENABLED",
+        default=False,
+    )
+    database_url: str = Field(alias="VIBE_MARKET_MORNING_DATABASE_URL", default="")
+    database_echo: EnvBool = Field(alias="VIBE_MARKET_MORNING_DATABASE_ECHO", default=False)
+    database_pool_size: int = Field(alias="VIBE_MARKET_MORNING_DATABASE_POOL_SIZE", default=5, ge=1, le=50)
+    database_pool_recycle_seconds: int = Field(
+        alias="VIBE_MARKET_MORNING_DATABASE_POOL_RECYCLE_SECONDS",
+        default=1800,
+        ge=60,
+    )
+    runtime_enabled: EnvBool = Field(
+        alias="VIBE_MARKET_MORNING_RUNTIME_ENABLED",
+        default=False,
+    )
+    runtime_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_RUNTIME_FACTORY",
+        default="",
+    )
+    provider_bundle_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_PROVIDER_BUNDLE_FACTORY",
+        default="",
+        max_length=512,
+    )
+    email_webhook_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_EMAIL_WEBHOOK_FACTORY",
+        default="",
+    )
+    email_identity_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_EMAIL_IDENTITY_FACTORY",
+        default="",
+        max_length=512,
+    )
+    auth_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_AUTH_FACTORY",
+        default="",
+    )
+    admin_auth_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_ADMIN_AUTH_FACTORY",
+        default="",
+    )
+    oidc_provider: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_PROVIDER",
+        default="oidc",
+        pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$",
+    )
+    oidc_issuer: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_ISSUER",
+        default="",
+        max_length=2048,
+    )
+    oidc_jwks_url: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_JWKS_URL",
+        default="",
+        max_length=2048,
+    )
+    oidc_audience: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_AUDIENCE",
+        default="",
+        max_length=255,
+    )
+    oidc_algorithm: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_ALGORITHM",
+        default="RS256",
+        max_length=16,
+    )
+    oidc_jwks_ttl_seconds: int = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_JWKS_TTL_SECONDS",
+        default=300,
+        ge=30,
+        le=3600,
+    )
+    oidc_http_timeout_seconds: float = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_HTTP_TIMEOUT_SECONDS",
+        default=5.0,
+        ge=1.0,
+        le=15.0,
+    )
+    oidc_clock_skew_seconds: int = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_CLOCK_SKEW_SECONDS",
+        default=30,
+        ge=0,
+        le=120,
+    )
+    oidc_session_validator_factory: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_SESSION_VALIDATOR_FACTORY",
+        default="",
+        max_length=512,
+    )
+    oidc_admin_roles_claim: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM",
+        default="roles",
+        max_length=128,
+    )
+    oidc_admin_role_permissions_json: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON",
+        default="",
+        max_length=16384,
+    )
+    runtime_role: str = Field(
+        alias="VIBE_MARKET_MORNING_RUNTIME_ROLE",
+        default="all",
+        pattern="^(worker|scheduler|all)$",
+    )
+    allow_fixture_runtime: EnvBool = Field(
+        alias="VIBE_MARKET_MORNING_ALLOW_FIXTURE_RUNTIME",
+        default=False,
+    )
+    worker_id: str = Field(
+        alias="VIBE_MARKET_MORNING_WORKER_ID",
+        default="",
+        max_length=128,
+    )
+    scheduler_owner_id: str = Field(
+        alias="VIBE_MARKET_MORNING_SCHEDULER_OWNER_ID",
+        default="",
+        max_length=128,
+    )
+    worker_poll_seconds: float = Field(
+        alias="VIBE_MARKET_MORNING_WORKER_POLL_SECONDS",
+        default=1.0,
+        ge=0.05,
+        le=60.0,
+    )
+    scheduler_poll_seconds: float = Field(
+        alias="VIBE_MARKET_MORNING_SCHEDULER_POLL_SECONDS",
+        default=30.0,
+        ge=0.05,
+        le=60.0,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -266,38 +423,48 @@ class AgentTuningConfig(_EnvBase):
     token_threshold: int = Field(alias="TOKEN_THRESHOLD", default=40000)
     vt_heartbeat_interval_s: float = Field(alias="VT_HEARTBEAT_INTERVAL_S", default=3.0)
     vt_reasoning_delta_min_interval_s: float = Field(
-        alias="VT_REASONING_DELTA_MIN_INTERVAL_S", default=1.0,
+        alias="VT_REASONING_DELTA_MIN_INTERVAL_S",
+        default=1.0,
     )
     vt_stream_retry_delay_s: float = Field(alias="VT_STREAM_RETRY_DELAY_S", default=1.0)
     vibe_trading_tool_timeout_seconds: float = Field(
-        alias="VIBE_TRADING_TOOL_TIMEOUT_SECONDS", default=1800.0,
+        alias="VIBE_TRADING_TOOL_TIMEOUT_SECONDS",
+        default=1800.0,
     )
     vibe_trading_goal_max_continuations: int = Field(
-        alias="VIBE_TRADING_GOAL_MAX_CONTINUATIONS", default=3,
+        alias="VIBE_TRADING_GOAL_MAX_CONTINUATIONS",
+        default=3,
     )
     vibe_trading_sse_timeout: int = Field(alias="VIBE_TRADING_SSE_TIMEOUT", default=90)
     content_filter_warning_threshold: float = Field(
-        alias="CONTENT_FILTER_WARNING_THRESHOLD", default=0.05,
+        alias="CONTENT_FILTER_WARNING_THRESHOLD",
+        default=0.05,
     )
     vibe_trading_enable_advisory: EnvBool = Field(
-        alias="VIBE_TRADING_ENABLE_ADVISORY", default=False,
+        alias="VIBE_TRADING_ENABLE_ADVISORY",
+        default=False,
     )
     vibe_trading_enable_scheduler: EnvBool = Field(
-        alias="VIBE_TRADING_ENABLE_SCHEDULER", default=False,
+        alias="VIBE_TRADING_ENABLE_SCHEDULER",
+        default=False,
     )
     vibe_trading_channels_auto_start: EnvBool = Field(
-        alias="VIBE_TRADING_CHANNELS_AUTO_START", default=False,
+        alias="VIBE_TRADING_CHANNELS_AUTO_START",
+        default=False,
     )
     vibe_trading_disable_bottleneck: EnvBool = Field(
-        alias="VIBE_TRADING_DISABLE_BOTTLENECK", default=False,
+        alias="VIBE_TRADING_DISABLE_BOTTLENECK",
+        default=False,
     )
     vibe_trading_bench_workers: int = Field(alias="VIBE_TRADING_BENCH_WORKERS", default=0)
     vibe_trading_search_backends: str = Field(alias="VIBE_TRADING_SEARCH_BACKENDS", default="")
     vibe_trading_search_bing_fallback: EnvBool = Field(
-        alias="VIBE_TRADING_SEARCH_BING_FALLBACK", default=True,
+        alias="VIBE_TRADING_SEARCH_BING_FALLBACK",
+        default=True,
     )
     vibe_live_authorize_timeout_s: int = Field(
-        alias="VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS", default=300,
+        alias="VIBE_LIVE_AUTHORIZE_TIMEOUT_SECONDS",
+        default=300,
     )
 
 
@@ -316,13 +483,15 @@ class PathConfig(_EnvBase):
     vibe_trading_hypotheses_path: str = Field(alias="VIBE_TRADING_HYPOTHESES_PATH", default="")
     vibe_trading_goal_db_path: str = Field(alias="VIBE_TRADING_GOAL_DB_PATH", default="")
     vibe_trading_swarm_agent_config: str = Field(
-        alias="VIBE_TRADING_SWARM_AGENT_CONFIG", default="",
+        alias="VIBE_TRADING_SWARM_AGENT_CONFIG",
+        default="",
     )
     allow_session_mcp_servers: EnvBool = Field(alias="ALLOW_SESSION_MCP_SERVERS", default=False)
     vibe_trading_theme: str = Field(alias="VIBE_TRADING_THEME", default="")
     vibe_goal_session_id: str = Field(alias="VIBE_GOAL_SESSION_ID", default="")
     vibe_trading_strategy_store_db_path: str = Field(
-        alias="VIBE_TRADING_STRATEGY_STORE_DB_PATH", default="",
+        alias="VIBE_TRADING_STRATEGY_STORE_DB_PATH",
+        default="",
     )
 
 
@@ -345,6 +514,7 @@ class EnvConfig(_EnvBase):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     data: DataConfig = Field(default_factory=DataConfig)
     api: APIConfig = Field(default_factory=APIConfig)
+    market_morning: MarketMorningConfig = Field(default_factory=MarketMorningConfig)
     swarm: SwarmConfig = Field(default_factory=SwarmConfig)
     agent_tuning: AgentTuningConfig = Field(default_factory=AgentTuningConfig)
     paths: PathConfig = Field(default_factory=PathConfig)

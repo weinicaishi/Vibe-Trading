@@ -22,6 +22,56 @@ export function isAuthRequiredError(error: unknown): boolean {
 export interface CorrelationResponse {
   labels: string[];
   matrix: number[][];
+  alignment?: {
+    basis: "session_date";
+    join: "inner";
+    interpretation: string;
+  };
+}
+
+export type MarketRange = "1m" | "3m" | "6m" | "1y";
+
+export interface MarketBar {
+  session_date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export interface MarketIndexItem {
+  symbol: string;
+  name: string;
+  name_ja: string;
+  market: "global_index";
+  region: "JP" | "US";
+  currency: "JPY" | "USD";
+  timezone: string;
+  source: string;
+  delay_status: "unknown" | "eod" | "delayed" | "realtime";
+  tradable: false;
+  window_start: string;
+  window_end: string;
+  latest: MarketBar;
+  previous_close: number | null;
+  change: number | null;
+  change_percent: number | null;
+  series: MarketBar[];
+}
+
+export interface MarketIndexError {
+  symbol: string;
+  provider: string;
+  code: string;
+  message: string;
+}
+
+export interface MarketIndicesResponse {
+  as_of: string;
+  range: MarketRange;
+  interval: "1D";
+  items: MarketIndexItem[];
+  errors: MarketIndexError[];
 }
 
 async function errorFromResponse(res: Response): Promise<ApiError> {
@@ -89,6 +139,11 @@ function appendQueryParam(url: string, key: string, value: string): string {
 
 export const api = {
   uploadFile,
+  getMarketIndices: (range: MarketRange, signal?: AbortSignal) =>
+    request<MarketIndicesResponse>(
+      `/market/indices?range=${encodeURIComponent(range)}`,
+      { signal },
+    ),
   getCorrelation: (codes: string, days: number, method: "pearson" | "spearman") =>
     request<CorrelationResponse>(
       `/correlation?codes=${encodeURIComponent(codes)}&days=${encodeURIComponent(String(days))}&method=${encodeURIComponent(method)}`,

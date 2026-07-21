@@ -34,6 +34,27 @@ def test_harmonic_backend_is_not_a_core_install_dependency() -> None:
     assert "pyharmonics" not in requirements_txt
 
 
+def test_market_morning_oidc_crypto_is_a_core_runtime_dependency() -> None:
+    """The built-in production auth adapter must work in the base image."""
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())
+
+    core_dependencies = {
+        _normalized_requirement_name(requirement)
+        for requirement in pyproject["project"]["dependencies"]
+    }
+    requirements_txt = {
+        _normalized_requirement_name(line)
+        for line in (ROOT / "agent" / "requirements.txt").read_text().splitlines()
+        if line and not line.startswith("#")
+    }
+    lock = (ROOT / "requirements-lock.txt").read_text()
+
+    assert "pyjwt" in core_dependencies
+    assert "pyjwt" in requirements_txt
+    assert "pyjwt==" in lock
+    assert "cryptography==" in lock
+
+
 def test_harmonic_backend_is_available_as_an_optional_extra() -> None:
     """Users who need harmonic pattern detection can still opt in explicitly."""
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text())

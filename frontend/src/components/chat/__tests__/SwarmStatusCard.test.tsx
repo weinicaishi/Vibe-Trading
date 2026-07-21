@@ -47,7 +47,7 @@ describe("SwarmStatusCard", () => {
   it("shows empty state while waiting for events", () => {
     const html = renderToStaticMarkup(<SwarmStatusCard status={makeStatus({ agents: [] })} />);
 
-    expect(html).toContain("Waiting for agent events...");
+    expect(html).toContain("エージェントイベントを待機中...");
   });
 
   it("builds a card model from swarm.started payload", () => {

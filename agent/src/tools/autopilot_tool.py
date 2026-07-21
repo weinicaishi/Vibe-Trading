@@ -191,18 +191,21 @@ _UNIVERSE_CODES: dict[str, list[str]] = {
     "sse comp": ["000001.SH"],
     "chinext": ["399006.SZ"],
     "chi next": ["399006.SZ"],
-    "s&p 500": ["SPY.US"],
-    "sp500": ["SPY.US"],
-    "nasdaq": ["QQQ.US"],
-    "dow jones": ["DIA.US"],
     "hang seng": ["^HSI.HK"],
-    "nikkei": ["^N225.HK"],
+    "nikkei": ["NIKKEI225.INDEX"],
 }
 
 
 def _lookup_codes(universe: str) -> list[str]:
     key = universe.strip().lower().replace("-", " ").replace("_", " ")
-    return _UNIVERSE_CODES.get(key, [universe])
+    mapped = _UNIVERSE_CODES.get(key)
+    if mapped is not None:
+        return mapped
+    from backtest.instruments import get_instrument, normalize_symbol
+
+    normalized = normalize_symbol(universe)
+    instrument = get_instrument(normalized)
+    return [instrument.canonical_symbol] if instrument is not None else [universe]
 
 
 def _resolve_source(data_sources: list[str] | None) -> tuple[str, str | None]:
@@ -330,6 +333,21 @@ class GenerateBacktestConfigTool(BaseTool):
             _validate_backtest_dates(start_date, end_date)
 
             codes = _lookup_codes(hypothesis.universe)
+            from backtest.instruments import get_instrument
+
+            if any(get_instrument(code) is not None for code in codes):
+                return json.dumps(
+                    {
+                        "status": "error",
+                        "code": "INDEX_NOT_TRADABLE",
+                        "error": "A research index cannot be used as a backtest order instrument.",
+                        "hint": (
+                            "Keep the canonical index for research/benchmarking, or explicitly "
+                            "choose a tradable ETF/future as the strategy universe."
+                        ),
+                    },
+                    ensure_ascii=False,
+                )
             source, source_warning = _resolve_source(hypothesis.data_sources)
 
             config = {

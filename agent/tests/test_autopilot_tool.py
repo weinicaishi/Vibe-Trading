@@ -35,6 +35,35 @@ def test_lookup_codes_matches_chinext_case_insensitively() -> None:
     assert _lookup_codes("Chi-Next") == ["399006.SZ"]
 
 
+def test_lookup_codes_uses_research_indices_without_silent_etf_proxy() -> None:
+    assert _lookup_codes("S&P 500") == ["SP500.INDEX"]
+    assert _lookup_codes("dow jones") == ["DJIA.INDEX"]
+    assert _lookup_codes("nikkei") == ["NIKKEI225.INDEX"]
+
+
+def test_lookup_codes_rejects_ambiguous_nasdaq() -> None:
+    from backtest.instruments import AmbiguousSymbolError
+
+    with pytest.raises(AmbiguousSymbolError):
+        _lookup_codes("nasdaq")
+
+
+def test_generate_backtest_config_rejects_research_index_before_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    hypothesis = _seed_hypothesis(tmp_path, monkeypatch, universe="S&P 500")
+    payload = json.loads(
+        GenerateBacktestConfigTool().execute(
+            hypothesis_id=hypothesis.hypothesis_id,
+            start_date="2026-01-01",
+            end_date="2026-01-31",
+        )
+    )
+    assert payload["code"] == "INDEX_NOT_TRADABLE"
+    assert not (tmp_path / ".vibe-trading" / "runs").exists()
+
+
 def test_generate_backtest_config_writes_safe_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

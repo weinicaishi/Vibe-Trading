@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "scope": "market_morning_monitoring_drill",
+  "environment_tier": "staging",
+  "release_revision": "0000000000000000000000000000000000000000",
+  "started_at": "2026-07-22T06:00:00+09:00",
+  "finished_at": "2026-07-22T06:01:00+09:00",
+  "rules_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "alertmanager_config_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "receiver_reference_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "receiver_type": "unconfigured",
+  "operator_acknowledgement_count": 0,
+  "status": "failed",
+  "counts_as_staging_observability_evidence": false,
+  "contains_secret": false,
+  "contains_sensitive_payload": false,
+  "checks": {
+    "alertmanager_route_loaded": "failed",
+    "critical_firing_delivered": "failed",
+    "critical_resolved_delivered": "failed",
+    "dual_operator_acknowledged": "failed",
+    "prometheus_rule_loaded": "failed",
+    "silence_expiry_verified": "failed",
+    "warning_firing_delivered": "failed",
+    "warning_resolved_delivered": "failed"
+  },
+  "failure_codes": [
+    "monitoring_drill_not_run"
+  ],
+  "artifact_sha256": {
+    "alertmanager_route_loaded": "0000000000000000000000000000000000000000000000000000000000000000",
+    "critical_firing_delivered": "0000000000000000000000000000000000000000000000000000000000000000",
+    "critical_resolved_delivered": "0000000000000000000000000000000000000000000000000000000000000000",
+    "dual_operator_acknowledged": "0000000000000000000000000000000000000000000000000000000000000000",
+    "prometheus_rule_loaded": "0000000000000000000000000000000000000000000000000000000000000000",
+    "silence_expiry_verified": "0000000000000000000000000000000000000000000000000000000000000000",
+    "warning_firing_delivered": "0000000000000000000000000000000000000000000000000000000000000000",
+    "warning_resolved_delivered": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

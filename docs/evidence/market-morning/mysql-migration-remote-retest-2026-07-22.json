@@ -1,0 +1,59 @@
+{
+  "contains_destructive_migration_evidence": true,
+  "counts_as_staging_day": false,
+  "environment": "remote_mysql_8_retest",
+  "finished_at": "2026-07-21T17:33:50.577027Z",
+  "run_id": "mysql-migration-4ef37f15-274e-4d4d-84a6-f86eb8ee2708",
+  "scenarios": [
+    {
+      "duration_ms": 7470,
+      "exit_code": 0,
+      "expected": "专用库从 base 升级到 head 后 revision 精确为 0017，且 mm_* 表集合与 ORM metadata 一致。",
+      "failure_code": null,
+      "name": "MySQL 空库迁移到 head",
+      "output_sha256": "350226a5e8631e55259280b777f1a33c48ad97b1b4ebad5a766e29e7cd574955",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_migration_live.py::test_mysql_migration_fresh_database_reaches_exact_head"
+      ],
+      "scenario_id": "mysql_migration_fresh_head",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 7615,
+      "exit_code": 0,
+      "expected": "0016 账户与私测邀请数据在升级 0017 后保持不变，并创建 content reports 表。",
+      "failure_code": null,
+      "name": "MySQL 0016 升级到 head",
+      "output_sha256": "2f8ffca39aa0fb73466d7e5acb126ab087d3b2760d75f93c55be409305d035b8",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_migration_live.py::test_mysql_migration_0016_data_survives_upgrade_to_head"
+      ],
+      "scenario_id": "mysql_migration_0016_to_head",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 8598,
+      "exit_code": 0,
+      "expected": "head 降到 0016 时只移除 content reports 表，既有数据保留；重新升级后恢复精确 head。",
+      "failure_code": null,
+      "name": "MySQL 0017 downgrade roundtrip",
+      "output_sha256": "4aec9c327de2c66c3429d1d02ec9b588e70c162aa5c65cbf8204da50e9a6c82b",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_migration_live.py::test_mysql_migration_downgrade_roundtrip_preserves_prior_data"
+      ],
+      "scenario_id": "mysql_migration_downgrade_roundtrip",
+      "status": "passed"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "real_mysql_migration_rehearsal",
+  "started_at": "2026-07-21T17:33:26.892886Z",
+  "status": "passed",
+  "summary": {
+    "errors": 0,
+    "failed": 0,
+    "passed": 3,
+    "total": 3
+  },
+  "target_fingerprint": "906014cd6586074097f4b2744f3738cbcc105dae12477ed8ef6d5dec37c978d0"
+}

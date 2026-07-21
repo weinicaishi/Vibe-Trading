@@ -33,6 +33,13 @@ _SOURCE_PATTERNS = [
 
 def detect_source(code: str) -> str:
     """Infer the best loader source for a normalized symbol."""
+    from backtest.index_provider_policy import provider_candidates
+    from backtest.instruments import get_instrument, normalize_symbol
+
+    normalized = normalize_symbol(code)
+    instrument = get_instrument(normalized)
+    if instrument is not None:
+        return provider_candidates(instrument.canonical_symbol)[0]
     for pattern, source in _SOURCE_PATTERNS:
         if pattern.match(code):
             return source
@@ -88,15 +95,18 @@ def fetch_market_data(
     loader_resolver: Callable[[str], type] = get_loader,
 ) -> dict[str, Any]:
     """Fetch normalized OHLCV data through the repository loader layer."""
+    from backtest.instruments import normalize_symbol
+
     results: dict[str, Any] = {}
+    normalized_codes = [normalize_symbol(code) for code in codes]
 
     if source == "auto":
         groups: dict[str, list[str]] = {}
-        for code in codes:
+        for code in normalized_codes:
             src = detect_source(code)
             groups.setdefault(src, []).append(code)
     else:
-        groups = {source: list(codes)}
+        groups = {source: normalized_codes}
 
     for src, src_codes in groups.items():
         loader_cls = loader_resolver(src)
@@ -117,7 +127,7 @@ def fetch_market_data(
                     row[key] = _json_safe(value)
             results[symbol] = cap_rows(records, max_rows)
 
-    unresolved = [code for code in codes if code not in results]
+    unresolved = [code for code in normalized_codes if code not in results]
     if unresolved:
         results["_unresolved"] = unresolved
 

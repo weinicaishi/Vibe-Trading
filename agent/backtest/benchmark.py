@@ -12,6 +12,7 @@ from typing import Optional
 import pandas as pd
 
 from backtest.loaders.yfinance_loader import DataLoader as YfinanceLoader
+from backtest.instruments import get_instrument, normalize_symbol
 
 
 # -------------------------------------------------------------------
@@ -91,7 +92,7 @@ def _resolve_ticker(
     """Pick the benchmark ticker to use."""
 
     if explicit:
-        return explicit
+        return normalize_symbol(explicit)
 
     # Infer market from source + first code pattern
     market = _infer_market(codes, source)
@@ -135,7 +136,32 @@ def _fetch_benchmark(
     end_date:   str,
     interval:   str,
 ) -> pd.DataFrame:
-    """Fetch benchmark OHLCV data via yfinance (single symbol, no auth)."""
+    """Fetch a benchmark through the index policy or legacy yfinance path."""
+    instrument = get_instrument(ticker)
+    if instrument is not None:
+        from backtest.index_provider_policy import provider_candidates
+        from backtest.loaders import registry
+
+        registry._ensure_registered()
+        for provider in provider_candidates(instrument.canonical_symbol):
+            loader_cls = registry.LOADER_REGISTRY.get(provider)
+            if loader_cls is None:
+                continue
+            try:
+                loader = loader_cls()
+                if not loader.is_available():
+                    continue
+                result = loader.fetch(
+                    [instrument.canonical_symbol], start_date, end_date,
+                    interval=interval,
+                )
+            except Exception:
+                continue
+            frame = result.get(instrument.canonical_symbol) if isinstance(result, dict) else None
+            if isinstance(frame, pd.DataFrame) and not frame.empty:
+                return frame
+        return pd.DataFrame()
+
     loader = YfinanceLoader()
     result = loader.fetch([ticker], start_date, end_date, interval=interval)
 

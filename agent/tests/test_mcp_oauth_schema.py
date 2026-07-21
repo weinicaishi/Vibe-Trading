@@ -15,6 +15,8 @@ Covers:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastmcp.client.auth import OAuth
 from fastmcp.client.transports.http import StreamableHttpTransport
@@ -229,7 +231,7 @@ def _build_transport(server_config: MCPServerConfig):
     return _build_client(server_config).transport
 
 
-def test_build_client_yields_oauth_streamable_transport() -> None:
+def test_build_client_yields_oauth_streamable_transport(tmp_path: Path) -> None:
     cfg = MCPServerConfig.model_validate(
         {
             "type": "streamableHttp",
@@ -242,6 +244,7 @@ def test_build_client_yields_oauth_streamable_transport() -> None:
                 "client_id": "client-id",
                 "client_secret": "client-secret",
                 "client_metadata_url": "https://example.com/oauth/client.json",
+                "cache_dir": str(tmp_path / "oauth"),
             },
         }
     )
@@ -258,14 +261,18 @@ def test_build_client_yields_oauth_streamable_transport() -> None:
     assert transport.auth._client_metadata_url == "https://example.com/oauth/client.json"
 
 
-def test_build_client_uses_explicit_init_timeout_without_widening_tool_timeout() -> None:
+def test_build_client_uses_explicit_init_timeout_without_widening_tool_timeout(tmp_path: Path) -> None:
     cfg = MCPServerConfig.model_validate(
         {
             "type": "streamableHttp",
             "url": "https://agent.robinhood.com/mcp/trading",
             "tool_timeout": 7,
             "init_timeout": 300,
-            "auth": {"type": "oauth", "scopes": ["trading.read"]},
+            "auth": {
+                "type": "oauth",
+                "scopes": ["trading.read"],
+                "cache_dir": str(tmp_path / "oauth"),
+            },
         }
     )
 

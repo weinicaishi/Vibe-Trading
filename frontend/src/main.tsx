@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
+import { configureMarketMorningAuth0 } from "./lib/marketMorningAuth0";
 import { router } from "./router";
 // Self-hosted fonts (VT-006): vendor the woff2 files locally instead of the
 // Google Fonts CDN. Weights match tailwind.config.ts (Inter 400/500/600/700,
@@ -17,6 +18,11 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/700.css";
 import "highlight.js/styles/github-dark-dimmed.min.css";
 import "./index.css";
+
+// Registration is synchronous and happens before React mounts. The Auth0 SDK
+// itself initializes lazily behind each private product/operator boundary so a
+// provider outage cannot take down unrelated Vibe-Trading routes.
+configureMarketMorningAuth0();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

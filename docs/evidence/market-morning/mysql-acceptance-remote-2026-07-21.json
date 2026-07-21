@@ -1,0 +1,176 @@
+{
+  "contains_destructive_migration_evidence": false,
+  "counts_as_staging_day": false,
+  "environment": "staging",
+  "finished_at": "2026-07-21T07:38:47.575783Z",
+  "run_id": "mysql-acceptance-7099ba09-8ae9-4921-b520-eebe8a53e028",
+  "scenarios": [
+    {
+      "duration_ms": 867,
+      "exit_code": 0,
+      "expected": "真实 MySQL 为 8.x、连接 session 使用 UTC/utf8mb4，且 Alembic revision 精确为当前版本。",
+      "failure_code": null,
+      "name": "MySQL schema 与 session contract",
+      "output_sha256": "0dff5a7b4f7b627aa5d5ba9609862b0c83a9c34efeac8569b0ff66edb0c0e2d9",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_schema_and_session_contract"
+      ],
+      "scenario_id": "mysql_schema_and_session",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 934,
+      "exit_code": 0,
+      "expected": "两个真实连接并发写入同一幂等键只保留一个 job，且两个调用返回同一 job ID。",
+      "failure_code": null,
+      "name": "MySQL durable job 并发幂等",
+      "output_sha256": "63203b4ec2b29e7ab8c45616e4d500960794bb60488784fb13fb7fe05b0386bf",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_job_enqueue_is_concurrent_and_idempotent"
+      ],
+      "scenario_id": "mysql_job_concurrency",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 996,
+      "exit_code": 0,
+      "expected": "两个真实连接并发创建同一用户同日邮件尝试时只保留一条不可变 attempt。",
+      "failure_code": null,
+      "name": "MySQL 邮件尝试并发幂等",
+      "output_sha256": "1ab9905d8b0f34f6d791ff7da4efa2de0f7f3e282a078758cc0496cc0230c0f0",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_delivery_attempt_is_concurrent_and_idempotent"
+      ],
+      "scenario_id": "mysql_delivery_concurrency",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1129,
+      "exit_code": 0,
+      "expected": "真实 MySQL 执行删除 SQL 后私有子数据被清理、身份被伪名化且审计完整；probe 整体回滚。",
+      "failure_code": null,
+      "name": "MySQL 账户删除事务",
+      "output_sha256": "c952b5c568a02b83362e5cf5a0f46f1c733434977b415fd71a83aa63e7031707",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_account_deletion_executes_atomically_and_probe_rolls_back"
+      ],
+      "scenario_id": "mysql_account_deletion",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1071,
+      "exit_code": 0,
+      "expected": "相同来源 revision 并发写入只保留一条，订正/撤回链稳定，失败状态不推进 durable cursor。",
+      "failure_code": null,
+      "name": "MySQL 来源 revision 与 cursor",
+      "output_sha256": "3b48e0860dc023141693c4f77181cda5b340fb20a1a3707eedab872d4f8fa2ba",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_source_revision_chain_and_cursor_are_durable"
+      ],
+      "scenario_id": "mysql_source_revision_cursor",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1253,
+      "exit_code": 0,
+      "expected": "相同 generation key 并发发布保持幂等，新 key 创建递增版本并指向前一版本。",
+      "failure_code": null,
+      "name": "MySQL 用户朝刊版本链",
+      "output_sha256": "057a4f811934a7c8e0413d700e4be6b0e9bcd24fc5edea4612ed45c4e19a021e",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_morning_edition_generation_and_revision_chain"
+      ],
+      "scenario_id": "mysql_morning_edition_versions",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1099,
+      "exit_code": 0,
+      "expected": "两个并发 worker 在首个事务仍持锁时领取不同 job，并各自创建唯一 attempt。",
+      "failure_code": null,
+      "name": "MySQL worker SKIP LOCKED",
+      "output_sha256": "6262dd4ae1e1610248aa7a1d90c86e6b7861110a1a434aeede186690d3652770",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_workers_claim_distinct_jobs_with_skip_locked"
+      ],
+      "scenario_id": "mysql_worker_skip_locked",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1251,
+      "exit_code": 0,
+      "expected": "同一租约只允许一个 owner，当前 owner 可续租，过期后其他 owner 才能接管。",
+      "failure_code": null,
+      "name": "MySQL scheduler 单活租约",
+      "output_sha256": "acbadd455418fe405791d2d792bd1c63190d32c09dc2792bcd7909f7c0699441",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_scheduler_lease_is_single_owner_and_recoverable"
+      ],
+      "scenario_id": "mysql_scheduler_lease",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 969,
+      "exit_code": 0,
+      "expected": "两个真实连接并发创建同日同原因 halt 时只保留一个 active override，并只写一条 created 审计。",
+      "failure_code": null,
+      "name": "MySQL publication halt 并发单例",
+      "output_sha256": "730410d23add507d10274b5400f29dd16f80db2f65bf9ef1c50a875848f3486b",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_publication_halt_is_concurrent_and_audited_once"
+      ],
+      "scenario_id": "mysql_publication_halt_concurrency",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1399,
+      "exit_code": 0,
+      "expected": "同日两个成功 run 并发发布后均为不可变终态，但生成列唯一约束保证仅一个 current success。",
+      "failure_code": null,
+      "name": "MySQL global run 当前成功版本",
+      "output_sha256": "033cfb085ee02f8d8e516c6dddf96f5f3719bd8b0c411f963e67c7de458e5e62",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_global_runs_publish_one_current_success"
+      ],
+      "scenario_id": "mysql_global_run_current_success",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1219,
+      "exit_code": 0,
+      "expected": "同一生成 key 与同一 brief attempt 的并发写入分别只留下一个 EventBrief 和一条 hash-only model usage。",
+      "failure_code": null,
+      "name": "MySQL EventBrief 与 model usage 幂等",
+      "output_sha256": "ec3c61992e3bb1a5aac88c5f3c5619a6eccaa445b8e776896e3c8c676f9f6278",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_event_brief_and_model_usage_are_idempotent"
+      ],
+      "scenario_id": "mysql_event_brief_model_usage",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 1247,
+      "exit_code": 0,
+      "expected": "clicked 先到后生命周期不倒退，随后 delivered 被标记 stale，重复 provider event 幂等返回。",
+      "failure_code": null,
+      "name": "MySQL 邮件 webhook 重复与乱序",
+      "output_sha256": "073b1bbed3fedd224b758a734fc16517c5bf3d17bd10f69d131ecd1b1c9690ca",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_mysql_live.py::test_mysql_email_webhook_replay_and_out_of_order_events_are_monotonic"
+      ],
+      "scenario_id": "mysql_email_webhook_ordering",
+      "status": "passed"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "real_mysql_acceptance",
+  "started_at": "2026-07-21T07:38:34.141863Z",
+  "status": "passed",
+  "summary": {
+    "errors": 0,
+    "failed": 0,
+    "passed": 12,
+    "total": 12
+  },
+  "target_fingerprint": "d2771895314d68b11b044ef6ce482b01288af240fdb915ebd9f73e1abd36a282"
+}

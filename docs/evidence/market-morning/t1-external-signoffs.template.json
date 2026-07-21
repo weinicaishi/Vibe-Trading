@@ -1,0 +1,45 @@
+{
+  "environment_tier": "staging",
+  "generated_at": "2026-07-21T00:00:00+09:00",
+  "release_revision": "0000000000000000000000000000000000000000",
+  "runtime_schema_revision": "0017_market_morning_content_reports",
+  "schema_version": 2,
+  "scope": "market_morning_t1_external_signoffs",
+  "signoffs": {
+    "company_ir_rights": {
+      "approval_reference": "pending:company_ir_rights",
+      "approved_at": "2026-07-21T00:00:00+09:00",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "review_due_on": "2026-07-21",
+      "status": "blocked"
+    },
+    "edinet_rights": {
+      "approval_reference": "pending:edinet_rights",
+      "approved_at": "2026-07-21T00:00:00+09:00",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "review_due_on": "2026-07-21",
+      "status": "blocked"
+    },
+    "japan_legal_review": {
+      "approval_reference": "pending:japan_legal_review",
+      "approved_at": "2026-07-21T00:00:00+09:00",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "review_due_on": "2026-07-21",
+      "status": "blocked"
+    },
+    "jpx_market_data_rights": {
+      "approval_reference": "pending:jpx_market_data_rights",
+      "approved_at": "2026-07-21T00:00:00+09:00",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "review_due_on": "2026-07-21",
+      "status": "blocked"
+    },
+    "tdnet_rights": {
+      "approval_reference": "pending:tdnet_rights",
+      "approved_at": "2026-07-21T00:00:00+09:00",
+      "evidence_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "review_due_on": "2026-07-21",
+      "status": "blocked"
+    }
+  }
+}

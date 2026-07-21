@@ -47,6 +47,10 @@ from src.market_data import (
         ("BTC-USDT", "okx"),
         ("ETH/USDT", "ccxt"),
         ("local:my_file", "local"),
+        ("^N225", "yahoo"),
+        ("SP500.INDEX", "yahoo"),
+        ("^IXIC", "yahoo"),
+        ("DJIA.INDEX", "yahoo"),
         ("something_weird", "tushare"),  # documented fallback
     ],
 )
@@ -186,6 +190,18 @@ def test_fetch_auto_groups_by_detected_source() -> None:
     # AAPL.US -> yahoo, BTC-USDT -> okx: two distinct loader groups resolved.
     assert set(seen) == {"yahoo", "okx"}
     assert "AAPL.US" in out and "BTC-USDT" in out
+
+
+def test_fetch_index_alias_uses_canonical_business_key() -> None:
+    out = fetch_market_data(
+        codes=["^GSPC"],
+        start_date="2026-01-01",
+        end_date="2026-01-02",
+        source="auto",
+        loader_resolver=lambda src: _StubLoader,
+    )
+    assert "SP500.INDEX" in out
+    assert "^GSPC" not in out
 
 
 def test_fetch_loader_error_falls_through_to_unresolved() -> None:

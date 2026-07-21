@@ -110,6 +110,10 @@ describe("i18n interpolation parity", () => {
 // ── utility functions ──────────────────────────────────────────
 
 describe("i18n utilities", () => {
+  it("uses Japanese as the release fallback language", () => {
+    expect(i18n.options.fallbackLng).toContain("ja");
+  });
+
   it("isRtl returns true for Arabic", () => {
     expect(isRtl("ar")).toBe(true);
   });

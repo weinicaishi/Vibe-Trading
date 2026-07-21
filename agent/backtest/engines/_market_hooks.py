@@ -75,6 +75,11 @@ def _detect_market(code: str) -> str:
         Market type (a_share/us_equity/hk_equity/crypto/futures/forex);
         unknown defaults to ``a_share``.
     """
+    from backtest.instruments import detect_instrument_market
+
+    instrument_market = detect_instrument_market(code)
+    if instrument_market is not None:
+        return instrument_market
     for pattern, market in _MARKET_PATTERNS:
         if pattern.match(code):
             return market

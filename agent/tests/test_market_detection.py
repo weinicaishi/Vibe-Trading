@@ -18,6 +18,7 @@ from backtest.runner import (
     _group_codes_by_market,
     _group_codes_by_source,
     _normalize_codes,
+    fetch_data_map,
 )
 
 
@@ -70,6 +71,8 @@ class TestDetectMarket:
             ("EUR/USD", "forex"),
             ("USD/JPY", "forex"),
             ("EURUSD.FX", "forex"),
+            ("NIKKEI225.INDEX", "global_index"),
+            ("^GSPC", "global_index"),
         ],
     )
     def test_known_patterns(self, code: str, expected: str) -> None:
@@ -104,6 +107,7 @@ class TestDetectSource:
             ("BTC-USDT", "okx"),
             ("IF2406.CFFEX", "tushare"),
             ("EUR/USD", "akshare"),
+            ("SP500.INDEX", "yahoo"),
         ],
     )
     def test_source_mapping(self, code: str, expected_source: str) -> None:
@@ -237,3 +241,12 @@ class TestDetectMarketRequired:
 
     def test_crypto_hyphen_form(self) -> None:
         assert _detect_market("BTC-USDT") == "crypto"
+
+    def test_index_rejected_before_backtest_fetch(self) -> None:
+        with pytest.raises(ValueError, match="INDEX_NOT_TRADABLE"):
+            fetch_data_map({
+                "codes": ["SP500.INDEX"],
+                "source": "auto",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-31",
+            })

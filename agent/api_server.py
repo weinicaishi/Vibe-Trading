@@ -203,6 +203,19 @@ register_system_routes(app)
 
 from src.api.system_routes import _terminate_current_process  # noqa: F401, E402
 
+# --- Market indices ---
+from src.api.market_routes import register_market_routes  # noqa: E402
+register_market_routes(app)
+
+# --- Market Morning product (opt-in) ---
+from src.api.market_morning_routes import register_market_morning_routes  # noqa: E402
+from src.api.market_morning_admin_routes import register_market_morning_admin_routes  # noqa: E402
+from src.api.market_morning_email_webhook_routes import register_market_morning_email_webhook_routes  # noqa: E402
+
+register_market_morning_routes(app)
+register_market_morning_admin_routes(app)
+register_market_morning_email_webhook_routes(app)
+
 # --- Settings ---
 from src.api.settings_routes import register_settings_routes  # noqa: E402
 register_settings_routes(app)

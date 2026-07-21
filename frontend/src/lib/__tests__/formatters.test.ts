@@ -6,6 +6,8 @@ import {
   abbreviateNum,
   DISPLAY_ORDER,
   METRIC_LABELS,
+  formatMarketNumber,
+  formatMarketDateTime,
 } from "../formatters";
 
 describe("getMetricLabel", () => {
@@ -16,6 +18,25 @@ describe("getMetricLabel", () => {
 
   it("returns raw key for unknown keys", () => {
     expect(getMetricLabel("custom_metric")).toBe("custom_metric");
+  });
+});
+
+describe("market formatting", () => {
+  it("formats index points without a currency symbol", () => {
+    const value = formatMarketNumber(41820.25, "en-US");
+    expect(value).toBe("41,820.25");
+    expect(value).not.toMatch(/[¥$]/);
+  });
+
+  it("formats UTC snapshot time in the requested market timezone", () => {
+    const value = formatMarketDateTime("2026-07-17T08:00:00Z", "en-US", "Asia/Tokyo");
+    expect(value).toContain("Jul");
+    expect(value).toContain("5:00");
+  });
+
+  it("uses an em dash for missing or invalid values", () => {
+    expect(formatMarketNumber(null, "en-US")).toBe("—");
+    expect(formatMarketNumber(Number.NaN, "en-US")).toBe("—");
   });
 });
 

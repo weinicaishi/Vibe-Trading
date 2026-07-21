@@ -137,6 +137,7 @@ FALLBACK_CHAINS: dict[str, list[str]] = {
     "fund":      ["tushare", "akshare", "local"],
     "macro":     ["akshare", "tushare", "local"],
     "forex":     ["akshare", "yfinance", "local"],
+    "global_index": ["yahoo", "local"],
 }
 
 

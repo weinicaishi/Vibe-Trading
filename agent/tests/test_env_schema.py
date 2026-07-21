@@ -31,6 +31,7 @@ from src.config.env_schema import (
     DataConfig,
     EnvConfig,
     LLMConfig,
+    MarketMorningConfig,
     PathConfig,
     SwarmConfig,
     _parse_env_bool,
@@ -43,7 +44,15 @@ from src.config.env_schema import (
 
 # All env-var aliases used by EnvConfig sub-models.
 _ALL_ALIASES: list[str] = []
-for _model in (LLMConfig, DataConfig, APIConfig, SwarmConfig, AgentTuningConfig, PathConfig):
+for _model in (
+    LLMConfig,
+    DataConfig,
+    APIConfig,
+    MarketMorningConfig,
+    SwarmConfig,
+    AgentTuningConfig,
+    PathConfig,
+):
     for _info in _model.model_fields.values():
         if _info.alias:
             _ALL_ALIASES.append(_info.alias)
@@ -108,6 +117,7 @@ class TestEnvConfigDefaults:
         assert c.api.cors_origins == ""
         assert c.api.api_allowed_hosts == ""
         assert c.api.enable_session_runtime is True
+        assert c.api.market_indices_enabled is False
         assert c.api.vibe_trading_trust_docker_loopback is False
         assert c.api.vibe_trading_enable_shell_tools is False
         assert c.api.vibe_trading_allowed_file_roots == ""
@@ -123,6 +133,26 @@ class TestEnvConfigDefaults:
         assert c.swarm.swarm_heartbeat_interval_s == 3.0
         assert c.swarm.swarm_stream_retry_delay_s == 1.0
         assert c.swarm.swarm_grounding_max_symbols == 8
+
+    def test_market_morning_defaults_closed(self) -> None:
+        c = EnvConfig()
+        assert c.market_morning.enabled is False
+        assert c.market_morning.synthetic_edition_enabled is False
+        assert c.market_morning.database_url == ""
+        assert c.market_morning.database_echo is False
+        assert c.market_morning.database_pool_size == 5
+        assert c.market_morning.database_pool_recycle_seconds == 1800
+        assert c.market_morning.runtime_enabled is False
+        assert c.market_morning.runtime_factory == ""
+        assert c.market_morning.provider_bundle_factory == ""
+        assert c.market_morning.email_webhook_factory == ""
+        assert c.market_morning.email_identity_factory == ""
+        assert c.market_morning.runtime_role == "all"
+        assert c.market_morning.allow_fixture_runtime is False
+        assert c.market_morning.worker_id == ""
+        assert c.market_morning.scheduler_owner_id == ""
+        assert c.market_morning.worker_poll_seconds == 1.0
+        assert c.market_morning.scheduler_poll_seconds == 30.0
 
     def test_agent_tuning_defaults(self) -> None:
         c = EnvConfig()
@@ -189,6 +219,59 @@ class TestEnvConfigTypeCoercion:
         monkeypatch.setenv("ENABLE_SESSION_RUNTIME", "false")
         c = EnvConfig()
         assert c.api.enable_session_runtime is False
+
+    def test_market_indices_flag_from_env(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setenv("VIBE_MARKET_INDICES_ENABLED", "true")
+        assert EnvConfig().api.market_indices_enabled is True
+
+    def test_market_morning_env_coercion(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("VIBE_MARKET_MORNING_ENABLED", "true")
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_SYNTHETIC_EDITION_ENABLED",
+            "true",
+        )
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_DATABASE_URL",
+            "mysql+asyncmy://market-morning@mysql/market_morning",
+        )
+        monkeypatch.setenv("VIBE_MARKET_MORNING_DATABASE_POOL_SIZE", "8")
+        monkeypatch.setenv("VIBE_MARKET_MORNING_RUNTIME_ENABLED", "true")
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_PROVIDER_BUNDLE_FACTORY",
+            "deployment.market_morning_providers:build_provider_bundle",
+        )
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_EMAIL_WEBHOOK_FACTORY",
+            "deployment.market_morning:build_email_webhooks",
+        )
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_EMAIL_IDENTITY_FACTORY",
+            "deployment.market_morning:build_email_identity",
+        )
+        monkeypatch.setenv("VIBE_MARKET_MORNING_RUNTIME_ROLE", "worker")
+        monkeypatch.setenv("VIBE_MARKET_MORNING_WORKER_POLL_SECONDS", "0.5")
+
+        c = EnvConfig().market_morning
+
+        assert c.enabled is True
+        assert c.synthetic_edition_enabled is True
+        assert c.database_url.startswith("mysql+asyncmy://")
+        assert c.database_pool_size == 8
+        assert c.runtime_enabled is True
+        assert c.provider_bundle_factory == (
+            "deployment.market_morning_providers:build_provider_bundle"
+        )
+        assert c.email_webhook_factory == (
+            "deployment.market_morning:build_email_webhooks"
+        )
+        assert c.email_identity_factory == (
+            "deployment.market_morning:build_email_identity"
+        )
+        assert c.runtime_role == "worker"
+        assert c.worker_poll_seconds == 0.5
 
     def test_float_swarm_heartbeat(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("SWARM_HEARTBEAT_INTERVAL_S", "5.5")

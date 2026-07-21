@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/market-morning.rules.yml
+
+scrape_configs:
+  - job_name: market-morning-operations
+    scheme: https
+    metrics_path: /market-morning/_internal/operations/metrics
+    params:
+      hours:
+        - "24"
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/market_morning_metrics_bearer_token
+    static_configs:
+      - targets:
+          - market-morning-api.internal:443
+        labels:
+          environment: staging

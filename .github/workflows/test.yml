@@ -9,7 +9,25 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      MARKET_MORNING_MYSQL_ADMIN_PASSWORD: market-morning-ci
+      VIBE_MARKET_MORNING_ACCEPTANCE_DATABASE_URL: "mysql+asyncmy://root:market-morning-ci@127.0.0.1:3306/market_morning_acceptance_ci?charset=utf8mb4"
+      VIBE_MARKET_MORNING_MIGRATION_DATABASE_URL: "mysql+asyncmy://root:market-morning-ci@127.0.0.1:3306/market_morning_migration_acceptance_ci?charset=utf8mb4"
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: market-morning-ci
+          MYSQL_ROOT_HOST: "%"
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -pmarket-morning-ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -36,10 +54,59 @@ jobs:
           python -m py_compile backtest/runner.py
 
       - name: Run tests
+        id: backend_tests
         # test_e2e_harness_v2.py is gated by VIBE_TRADING_RUN_LIVE_E2E
         # (real-LLM only); list --ignore here so CI's intent is explicit and
         # the suite never silently switches state on env presence.
-        run: pytest --ignore=agent/tests/e2e_backtest --ignore=agent/tests/test_e2e_harness_v2.py --cov=agent --cov-report=term-missing --cov-report=xml --tb=short -q
+        run: |
+          set -o pipefail
+          pytest --ignore=agent/tests/e2e_backtest --ignore=agent/tests/test_e2e_harness_v2.py --cov=agent --cov-report=term-missing --cov-report=xml --tb=short -q \
+            | tee "${RUNNER_TEMP}/market-morning-backend-tests.log"
+
+      - name: Create dedicated Market Morning MySQL databases
+        id: mysql_databases
+        continue-on-error: true
+        run: |
+          docker exec \
+            --env MYSQL_PWD="${MARKET_MORNING_MYSQL_ADMIN_PASSWORD}" \
+            "${{ job.services.mysql.id }}" \
+            mysql --user=root --execute="CREATE DATABASE market_morning_acceptance_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs; CREATE DATABASE market_morning_migration_acceptance_ci CHARACTER SET utf8mb4 COLLATE utf8mb4_ja_0900_as_cs;"
+
+      - name: Migrate the dedicated acceptance database
+        id: mysql_acceptance_schema
+        continue-on-error: true
+        env:
+          VIBE_MARKET_MORNING_DATABASE_URL: ${{ env.VIBE_MARKET_MORNING_ACCEPTANCE_DATABASE_URL }}
+        run: python -m alembic -c agent/alembic-market-morning.ini upgrade head
+
+      - name: Run Market Morning real-MySQL acceptance
+        id: mysql_acceptance
+        continue-on-error: true
+        run: |
+          python -m src.market_morning.mysql_acceptance_cli \
+            --environment ci \
+            --confirm-write-to-dedicated-database \
+            --output "${RUNNER_TEMP}/market-morning-mysql-acceptance.json"
+
+      - name: Run Market Morning destructive migration rehearsal
+        id: mysql_migration
+        continue-on-error: true
+        run: |
+          python -m src.market_morning.mysql_migration_rehearsal_cli \
+            --environment ci \
+            --confirm-destructive-reset-of-dedicated-database \
+            --output "${RUNNER_TEMP}/market-morning-mysql-migration.json"
+
+      - name: Upload hash-only Market Morning MySQL evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: market-morning-mysql-evidence-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/market-morning-mysql-acceptance.json
+            ${{ runner.temp }}/market-morning-mysql-migration.json
+          if-no-files-found: warn
+          retention-days: 30
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -48,12 +115,46 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Frontend build
+        id: frontend_build
         run: |
           cd frontend
           npm ci
           npm run build
 
       - name: Frontend tests
+        id: frontend_tests
         run: |
+          set -o pipefail
           cd frontend
-          npx vitest run --reporter=verbose
+          npx vitest run --reporter=verbose \
+            | tee "${RUNNER_TEMP}/market-morning-frontend-tests.log"
+
+      - name: Enforce Market Morning MySQL gates
+        if: always()
+        run: |
+          test "${{ steps.mysql_databases.outcome }}" = "success"
+          test "${{ steps.mysql_acceptance_schema.outcome }}" = "success"
+          test "${{ steps.mysql_acceptance.outcome }}" = "success"
+          test "${{ steps.mysql_migration.outcome }}" = "success"
+
+      - name: Generate immutable Market Morning release candidate
+        run: |
+          python -m src.market_morning.release_candidate_cli \
+            --repository-root "${GITHUB_WORKSPACE}" \
+            --environment ci \
+            --expected-release-revision "${GITHUB_SHA}" \
+            --evidence "backend_tests=${RUNNER_TEMP}/market-morning-backend-tests.log" \
+            --evidence "frontend_build=${GITHUB_WORKSPACE}/frontend/dist/index.html" \
+            --evidence "frontend_tests=${RUNNER_TEMP}/market-morning-frontend-tests.log" \
+            --evidence "mysql_acceptance=${RUNNER_TEMP}/market-morning-mysql-acceptance.json" \
+            --evidence "mysql_migration=${RUNNER_TEMP}/market-morning-mysql-migration.json" \
+            --output "${RUNNER_TEMP}/market-morning-release-candidate.json"
+
+      - name: Upload immutable Market Morning release candidate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: market-morning-release-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/market-morning-release-candidate.json
+          if-no-files-found: warn
+          retention-days: 30

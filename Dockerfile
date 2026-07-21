@@ -17,7 +17,7 @@ RUN npm run build
 FROM python:3.11-slim@sha256:e031123e3d85762b141ad1cbc56452ba69c6e722ebf2f042cc0dc86c47c0d8b3 AS builder
 # python:3.11-slim digest resolved 2026-07-13
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
@@ -34,7 +34,7 @@ WORKDIR /app
 # agent/requirements.txt changes).
 COPY agent/requirements.txt agent/requirements.txt
 COPY requirements-lock.txt requirements-lock.txt
-RUN pip install --no-cache-dir --require-hashes -r requirements-lock.txt
+RUN pip install --no-cache-dir --retries 12 --timeout 120 --require-hashes -r requirements-lock.txt
 
 # Copy project + install the CLI entrypoint (editable — the runtime stage
 # re-creates the same /app/agent source tree the .pth file points at).
@@ -64,13 +64,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Debian install list; without them the lazy `from weasyprint import HTML` in
 # reporter.py fails and PDF rendering silently downgrades to HTML-only.
 # fonts-dejavu-core gives non-blank PDFs.
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get -o Acquire::Retries=5 update && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libharfbuzz0b \
     libfontconfig1 \
     libgdk-pixbuf-2.0-0 \
     libcairo2 \
+    libgl1 \
     fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
@@ -101,7 +102,7 @@ EXPOSE 8899
 
 # Health check — hits /live (liveness probe; /health remains a legacy alias).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8899/live')" || exit 1
+    CMD /opt/venv/bin/python -c "import urllib.request; urllib.request.urlopen('http://localhost:8899/live')" || exit 1
 
 # Run API server (serves frontend/dist as static files)
-CMD ["vibe-trading", "serve", "--host", "0.0.0.0", "--port", "8899"]
+CMD ["/opt/venv/bin/vibe-trading", "serve", "--host", "0.0.0.0", "--port", "8899"]

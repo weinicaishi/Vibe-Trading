@@ -31,6 +31,11 @@ def infer_market(code: str) -> str:
        markets use leading 0 and 3.
     4. Anything else (alphabetic tickers) is a US equity.
     """
+    from backtest.instruments import detect_instrument_market
+
+    instrument_market = detect_instrument_market(code)
+    if instrument_market is not None:
+        return instrument_market
     code_upper = code.strip().upper()
     crypto_suffixes = ("USDT", "BTC", "ETH", "BNB", "SOL", "ADA", "DOGE")
     if any(code_upper.endswith(s) for s in crypto_suffixes) or "/" in code:
@@ -65,6 +70,10 @@ def _normalize_symbol(code: str, market: str) -> str:
     Returns:
         The canonical symbol the market's loaders expect.
     """
+    if market == "global_index":
+        from backtest.instruments import normalize_symbol
+
+        return normalize_symbol(code)
     cleaned = code.strip()
     # Crypto pairs and anything already exchange-qualified pass through as-is.
     if market == "crypto" or "." in cleaned:
@@ -253,4 +262,12 @@ def compute_correlation_matrix(
         "matrix": matrix,
         "window": days,
         "method": method,
+        "alignment": {
+            "basis": "session_date",
+            "join": "inner",
+            "interpretation": (
+                "Same exchange session label; not simultaneous close time and "
+                "not a lead-lag model."
+            ),
+        },
     }

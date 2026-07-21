@@ -773,6 +773,21 @@
     "step4Title": "4. Go live when you're ready",
     "step4Desc": "Optionally approve a trading mandate with explicit limits — nothing trades without your confirmation."
   },
+  "market": {
+    "eyebrow": "Global indices",
+    "title": "Japan and U.S. market overview",
+    "subtitle": "Daily research data for Nikkei 225, S&P 500, Nasdaq Composite, and the Dow.",
+    "rangeLabel": "Chart range",
+    "loading": "Loading market indices",
+    "unavailable": "Market indices are unavailable",
+    "retry": "Retry",
+    "partial": "Some indices are temporarily unavailable; available markets remain visible.",
+    "source": "Source",
+    "session": "Session",
+    "updated": "Updated",
+    "delayUnknown": "Delay status unknown",
+    "disclaimer": "Research data only. Not investment advice and not a tradable instrument."
+  },
   "errorBoundary": {
     "somethingWrong": "Something went wrong"
   }

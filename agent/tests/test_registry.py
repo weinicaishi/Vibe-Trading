@@ -132,7 +132,7 @@ class TestProtocol:
 
 class TestFallbackChains:
     def test_all_expected_markets_present(self) -> None:
-        expected = {"a_share", "us_equity", "hk_equity", "india_equity", "crypto", "futures", "fund", "macro", "forex"}
+        expected = {"a_share", "us_equity", "hk_equity", "india_equity", "crypto", "futures", "fund", "macro", "forex", "global_index"}
         assert expected == set(FALLBACK_CHAINS.keys())
 
     def test_chains_are_non_empty(self) -> None:
@@ -158,6 +158,7 @@ class TestFallbackChains:
         assert FALLBACK_CHAINS["hk_equity"] == [
             "eastmoney", "yahoo", "futu", "yfinance", "akshare", "longbridge", "local",
         ]
+        assert FALLBACK_CHAINS["global_index"] == ["yahoo", "local"]
 
     def test_us_equity_includes_sina_fallback(self) -> None:
         """'sina' must be reachable for US equities (after yahoo/stooq) so it is

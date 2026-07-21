@@ -43,6 +43,12 @@ wiki/.cache/
 .cache/
 .remotion/
 
+# Local analysis/browser artifacts; never release or upload from the worktree.
+.codegraph/
+.playwright-cli/
+output/
+agent.zip
+
 # DuckDB data cache
 data/*.duckdb
 data/*.duckdb.wal
@@ -50,8 +56,25 @@ data/.duckdb_tmp/
 data/parquet/
 data/backup/
 
-# Internal docs (plans, specs)
+# Internal docs are ignored by default. Market Morning is the exception:
+# its reviewed plan, ADRs, runbook and privacy-safe evidence contracts are part
+# of the release/audit chain and must exist in a clean CI checkout.
 docs/
+!docs/
+docs/*
+!docs/market-morning-*.md
+!docs/adr/
+docs/adr/*
+!docs/adr/README.md
+!docs/adr/0001-market-morning-product-isolation.md
+!docs/adr/0002-market-morning-mysql-data-layer.md
+!docs/adr/0003-market-morning-product-identity.md
+!docs/adr/0004-market-morning-durable-jobs.md
+!docs/adr/0005-market-morning-calendar-and-time.md
+!docs/evidence/
+docs/evidence/*
+!docs/evidence/market-morning/
+!docs/evidence/market-morning/**
 !wiki/docs/
 !wiki/docs/**
 docs/screenshots/agent-run.png

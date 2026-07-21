@@ -503,6 +503,7 @@ _MARKET_TO_SOURCE = {
     "fund": "tushare",
     "macro": "akshare",
     "forex": "akshare",
+    "global_index": "yahoo",
 }
 
 
@@ -949,6 +950,12 @@ def _create_market_engine(source: str, config: dict, codes: List[str]):
     # Detect dominant market type from codes
     markets = {_detect_market(c) for c in codes} if codes else set()
 
+    if "global_index" in markets:
+        raise ValueError(
+            "INDEX_NOT_TRADABLE: .INDEX instruments are available for research "
+            "and benchmarks, but cannot be used as backtest order instruments"
+        )
+
     # Cross-market -> CompositeEngine
     if len(markets) > 1:
         from backtest.engines.composite import CompositeEngine
@@ -1080,6 +1087,12 @@ def fetch_data_map(config: dict) -> DataFetchResult:
     source = str(config.get("source") or "tushare")
     codes = list(config.get("codes") or [])
     interval = str(config.get("interval") or "1D")
+
+    if any(_detect_market(code) == "global_index" for code in codes):
+        raise ValueError(
+            "INDEX_NOT_TRADABLE: .INDEX instruments are research/benchmark "
+            "references and cannot be used as backtest order instruments"
+        )
 
     if source == "auto":
         data_map = _fetch_auto(codes, config, interval)

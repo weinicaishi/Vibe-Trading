@@ -1,0 +1,46 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: market-morning-unmatched
+  group_by:
+    - alertname
+    - service
+    - severity
+    - code
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 1h
+  routes:
+    - receiver: market-morning-critical-webhook
+      matchers:
+        - 'service = "market-morning"'
+        - 'severity = "critical"'
+      group_wait: 0s
+      group_interval: 2m
+      repeat_interval: 15m
+
+    - receiver: market-morning-warning-webhook
+      matchers:
+        - 'service = "market-morning"'
+        - 'severity = "warning"'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+
+receivers:
+  - name: market-morning-unmatched
+
+  - name: market-morning-critical-webhook
+    webhook_configs:
+      - url_file: /run/secrets/market_morning_critical_webhook_url
+        send_resolved: true
+        max_alerts: 20
+        timeout: 10s
+
+  - name: market-morning-warning-webhook
+    webhook_configs:
+      - url_file: /run/secrets/market_morning_warning_webhook_url
+        send_resolved: true
+        max_alerts: 20
+        timeout: 10s

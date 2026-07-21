@@ -1,0 +1,187 @@
+{
+  "counts_as_staging_day": false,
+  "environment": "local-development",
+  "finished_at": "2026-07-21T00:41:22.594330Z",
+  "run_id": "t0-027ce18d-97f9-48c0-a7e7-e0a81232d311",
+  "scenarios": [
+    {
+      "duration_ms": 247,
+      "exit_code": 0,
+      "expected": "开放日可通过快照 Gate 发布，且应用层邮件尝试保持同日幂等。",
+      "failure_code": null,
+      "name": "标准交易日",
+      "output_sha256": "35a1d58c48b74e0e3e7b158b5545a9552f2371583edfef1ea0d022c59f5a0a1c",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_calendar.py::test_scenario_a_japan_and_previous_us_session_open",
+        "agent/tests/test_market_morning_global_run_service.py::test_global_run_service_publishes_only_after_snapshot_gate",
+        "agent/tests/test_market_morning_email_delivery.py::test_delivery_attempt_insert_is_concurrency_safe_and_exactly_keyed"
+      ],
+      "scenario_id": "standard_trading_day",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 237,
+      "exit_code": 0,
+      "expected": "日本开市时使用最后有效美国交易日，并明确标记美国休市场景。",
+      "failure_code": null,
+      "name": "美国休市",
+      "output_sha256": "c91dad03511eb111dba9f317cdb7962c64ec389c7d259de488e167c78aac1b31",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_calendar.py::test_scenario_b_japan_open_and_us_holiday_uses_last_valid_close"
+      ],
+      "scenario_id": "us_holiday",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 242,
+      "exit_code": 0,
+      "expected": "日本休市日不发布朝刊或邮件，但来源采集计划仍可继续。",
+      "failure_code": null,
+      "name": "日本休市",
+      "output_sha256": "570d6eca2cee31278223b2b6adcac2ab615ae9199c8a0c16418279c36414f36e",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_calendar.py::test_scenario_c_japan_holiday_does_not_publish_but_keeps_collection",
+        "agent/tests/test_market_morning_scheduler.py::test_snapshot_actions_are_suppressed_for_closed_or_complete_editions"
+      ],
+      "scenario_id": "japan_holiday",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 260,
+      "exit_code": 0,
+      "expected": "失败被隔离，cursor 不前进，覆盖不足不能显示为已确认无新事件。",
+      "failure_code": null,
+      "name": "单源失败",
+      "output_sha256": "0a97b591ab7ce9644866a9aea8e19c37ff6647585418c546d0481e0cb92bfbc7",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_sources.py::test_collect_source_batch_advances_cursor_only_after_every_document_normalizes",
+        "agent/tests/test_market_morning_job_handlers.py::test_source_handler_records_sanitized_failure_in_an_independent_transaction"
+      ],
+      "scenario_id": "single_source_failure",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 235,
+      "exit_code": 0,
+      "expected": "任一必需市场快照失败都会阻止发布，且不会创建空邮件。",
+      "failure_code": null,
+      "name": "市场数据失败",
+      "output_sha256": "3be6ffcaecf85b5bd3eef3693ab214b0e7c9eb4e36d117fcf1825652de5eb298",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_global_run_service.py::test_global_run_service_records_failed_gate_without_publishing"
+      ],
+      "scenario_id": "market_data_failure",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 240,
+      "exit_code": 0,
+      "expected": "瞬态错误可重试，最终失败只生成安全降级卡，非法内容被阻断。",
+      "failure_code": null,
+      "name": "模型失败",
+      "output_sha256": "35a1d58c48b74e0e3e7b158b5545a9552f2371583edfef1ea0d022c59f5a0a1c",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_event_brief_service.py::test_transient_model_failure_is_recorded_and_retried",
+        "agent/tests/test_market_morning_event_brief_service.py::test_final_model_failure_publishes_source_only_degraded_card",
+        "agent/tests/test_market_morning_event_brief_service.py::test_invalid_model_content_is_blocked_without_persisting_its_claims"
+      ],
+      "scenario_id": "model_failure",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 262,
+      "exit_code": 0,
+      "expected": "过期 lease 在重启后恢复，原 job 与 attempt 记录不被重复创建。",
+      "failure_code": null,
+      "name": "worker 重启",
+      "output_sha256": "0a97b591ab7ce9644866a9aea8e19c37ff6647585418c546d0481e0cb92bfbc7",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_worker.py::test_worker_loop_recovers_an_expired_job_before_claiming_work",
+        "agent/tests/test_market_morning_jobs.py::test_expired_running_job_is_recovered_for_retry"
+      ],
+      "scenario_id": "worker_restart",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 238,
+      "exit_code": 0,
+      "expected": "provider 超时记录脱敏失败并重试原 attempt，不生成第二封应用层提醒。",
+      "failure_code": null,
+      "name": "邮件超时",
+      "output_sha256": "570d6eca2cee31278223b2b6adcac2ab615ae9199c8a0c16418279c36414f36e",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_email_delivery_service.py::test_email_service_records_sanitized_provider_failure_and_retries",
+        "agent/tests/test_market_morning_email_delivery.py::test_delivery_attempt_state_machine_retries_and_preserves_provider_identity"
+      ],
+      "scenario_id": "email_timeout",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 333,
+      "exit_code": 0,
+      "expected": "rejected 内容从当前研究读取路径排除，同时保留不可变内容和审核轨迹。",
+      "failure_code": null,
+      "name": "EventBrief 下架",
+      "output_sha256": "eb1c29ca4bcb9644b3ffa66927ee360b64f341f94b62e607c92359d08e91e46b",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_operations.py::test_rejection_is_audited_idempotent_and_approval_fails_closed",
+        "agent/tests/test_market_morning_edition_generation.py::test_rejected_event_briefs_are_excluded_from_shared_reader_subquery"
+      ],
+      "scenario_id": "event_brief_rejection",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 246,
+      "exit_code": 0,
+      "expected": "scheduler 尊重 active halt，撤销不能绕过日历、质量 Gate 或发布窗口。",
+      "failure_code": null,
+      "name": "手动停发",
+      "output_sha256": "05969f68db42c0d80b5f203b4c913fe621ff8643af5b714630e061a4653df4b3",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_scheduler.py::test_manual_halt_is_loaded_before_calendar_decision_and_blocks_enqueue",
+        "agent/tests/test_market_morning_manual_overrides.py::test_revoke_publication_halt_is_locked_and_audited"
+      ],
+      "scenario_id": "manual_publication_halt",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 309,
+      "exit_code": 0,
+      "expected": "邀请 secret 只返回一次且只存 hash，用户停用后访问和邮件资格立即失效。",
+      "failure_code": null,
+      "name": "邀请与停用",
+      "output_sha256": "1d9005b5288d89602110b040b98b92850d7b1e57de837f61101026084bb596e8",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_beta_access.py::test_create_invite_returns_secret_once_but_persists_and_audits_hash_only",
+        "agent/tests/test_market_morning_beta_access.py::test_revoke_invite_and_suspend_user_are_idempotent_and_audited"
+      ],
+      "scenario_id": "invite_and_suspension",
+      "status": "passed"
+    },
+    {
+      "duration_ms": 316,
+      "exit_code": 0,
+      "expected": "导出排除内部 secret，删除幂等清除私有数据并不可逆伪名化身份。",
+      "failure_code": null,
+      "name": "导出与删除",
+      "output_sha256": "83684b1a1fdfcef1f6d3dc9f26b7cba5139790feb2d02deb149dd385220508fd",
+      "pytest_node_ids": [
+        "agent/tests/test_market_morning_account_privacy.py::test_export_queries_cover_user_owned_data_without_operational_secrets",
+        "agent/tests/test_market_morning_account_privacy.py::test_deletion_anonymizes_identity_and_removes_all_private_child_data",
+        "agent/tests/test_market_morning_account_privacy.py::test_completed_deletion_is_idempotent_and_does_not_repeat_destructive_sql"
+      ],
+      "scenario_id": "export_and_deletion",
+      "status": "passed"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "automated_local_synthetic",
+  "started_at": "2026-07-21T00:41:19.429584Z",
+  "status": "passed",
+  "summary": {
+    "errors": 0,
+    "failed": 0,
+    "passed": 12,
+    "total": 12
+  }
+}

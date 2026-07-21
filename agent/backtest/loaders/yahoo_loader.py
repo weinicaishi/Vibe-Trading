@@ -1,4 +1,4 @@
-"""Yahoo Finance loader: free, no-auth US/HK equity OHLCV via direct HTTP.
+"""Yahoo Finance loader: free, no-auth equity and global-index OHLCV.
 
 Wraps the shared :mod:`backtest.loaders.yahoo_client` (the public v8 chart
 endpoint) rather than the ``yfinance`` package, so it pulls in no new
@@ -39,8 +39,13 @@ _INTERVAL_MAP = {
 
 
 def _is_supported(code: str) -> bool:
-    """Return whether *code* is a symbol this loader handles (US/HK/India)."""
-    return code.strip().upper().endswith((".US", ".HK", ".NS", ".BO"))
+    """Return whether *code* is a supported project symbol."""
+    from backtest.instruments import get_instrument
+
+    return (
+        get_instrument(code) is not None
+        or code.strip().upper().endswith((".US", ".HK", ".NS", ".BO"))
+    )
 
 
 def _to_yahoo_interval(interval: str) -> str:
@@ -155,10 +160,10 @@ def _rows_to_frame(
 
 @register
 class DataLoader:
-    """Yahoo Finance US/HK equity OHLCV loader (free, direct HTTP, no auth)."""
+    """Yahoo equity/global-index OHLCV loader (free, direct HTTP, no auth)."""
 
     name = "yahoo"
-    markets = {"us_equity", "hk_equity", "india_equity"}
+    markets = {"us_equity", "hk_equity", "india_equity", "global_index"}
     requires_auth = False
 
     def is_available(self) -> bool:
@@ -240,8 +245,16 @@ class DataLoader:
         period1 = _epoch_seconds(start_date)
         period2 = _epoch_seconds(end_date) + 86400
 
+        from backtest.instruments import get_instrument, provider_symbol
+
+        instrument = get_instrument(code)
+        yahoo_symbol = (
+            provider_symbol(instrument.canonical_symbol, "yahoo")
+            if instrument is not None
+            else code
+        )
         rows = yahoo_client.get_chart(
-            code,
+            yahoo_symbol,
             interval=_to_yahoo_interval(interval),
             period1=period1,
             period2=period2,

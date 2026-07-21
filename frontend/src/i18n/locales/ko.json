@@ -768,6 +768,21 @@
     "step4Title": "4. 준비되면 실전으로",
     "step4Desc": "한도가 명시된 거래 mandate를 선택적으로 승인하세요 — 확인 없이는 어떤 주문도 실행되지 않습니다."
   },
+  "market": {
+    "eyebrow": "글로벌 지수",
+    "title": "일본 및 미국 시장 개요",
+    "subtitle": "닛케이 225, S&P 500, 나스닥 종합, 다우 지수의 일간 리서치 데이터입니다.",
+    "rangeLabel": "차트 범위",
+    "loading": "시장 지수 로딩 중",
+    "unavailable": "시장 지수를 사용할 수 없습니다",
+    "retry": "다시 시도",
+    "partial": "일부 지수를 일시적으로 사용할 수 없습니다. 사용 가능한 시장은 계속 표시됩니다.",
+    "source": "소스",
+    "session": "거래일",
+    "updated": "업데이트",
+    "delayUnknown": "지연 상태 알 수 없음",
+    "disclaimer": "리서치 전용 데이터입니다. 투자 조언이나 직접 거래 가능한 상품이 아닙니다."
+  },
   "errorBoundary": {
     "somethingWrong": "문제가 발생했습니다"
   },

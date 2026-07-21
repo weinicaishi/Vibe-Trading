@@ -768,6 +768,21 @@
     "step4Title": "4. 准备好了再上线",
     "step4Desc": "可选择授权明确额度的交易 mandate——未经你确认不会下任何真实订单。"
   },
+  "market": {
+    "eyebrow": "全球指数",
+    "title": "日本与美国市场概览",
+    "subtitle": "日经 225、标普 500、纳斯达克综合指数和道琼斯指数的日线研究数据。",
+    "rangeLabel": "图表范围",
+    "loading": "正在加载指数数据",
+    "unavailable": "暂时无法获取指数数据",
+    "retry": "重试",
+    "partial": "部分指数暂时不可用，已获取的市场数据仍正常展示。",
+    "source": "数据源",
+    "session": "交易日",
+    "updated": "更新时间",
+    "delayUnknown": "延迟状态未知",
+    "disclaimer": "仅供研究，不构成投资建议，也不是可直接交易的标的。"
+  },
   "errorBoundary": {
     "somethingWrong": "出了点问题"
   },

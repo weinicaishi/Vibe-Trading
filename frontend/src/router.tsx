@@ -25,6 +25,24 @@ const Correlation = lazy(() =>
 const AlphaZoo = lazy(() =>
   import("@/pages/AlphaZoo").then((m) => ({ default: m.AlphaZoo })),
 );
+const MarketMorningShell = lazy(() =>
+  import("@/pages/market-morning/MarketMorningShell").then((m) => ({ default: m.MarketMorningShell })),
+);
+const MarketMorningToday = lazy(() =>
+  import("@/pages/market-morning/MarketMorningToday").then((m) => ({ default: m.MarketMorningToday })),
+);
+const MarketMorningWatchlist = lazy(() =>
+  import("@/pages/market-morning/MarketMorningWatchlist").then((m) => ({ default: m.MarketMorningWatchlist })),
+);
+const MarketMorningSettings = lazy(() =>
+  import("@/pages/market-morning/MarketMorningSettings").then((m) => ({ default: m.MarketMorningSettings })),
+);
+const MarketMorningIssuerResearch = lazy(() =>
+  import("@/pages/market-morning/MarketMorningIssuerResearch").then((m) => ({ default: m.MarketMorningIssuerResearch })),
+);
+const MarketMorningOperations = lazy(() =>
+  import("@/pages/MarketMorningOperations").then((m) => ({ default: m.MarketMorningOperations })),
+);
 
 function PageLoader() {
   return (
@@ -44,11 +62,22 @@ function wrap(Component: ComponentType) {
 
 export const router = createBrowserRouter([
   {
+    path: "/market-morning",
+    element: wrap(MarketMorningShell),
+    children: [
+      { index: true, element: wrap(MarketMorningToday) },
+      { path: "app/watchlist", element: wrap(MarketMorningWatchlist) },
+      { path: "app/issuers/:issuerId", element: wrap(MarketMorningIssuerResearch) },
+      { path: "app/settings", element: wrap(MarketMorningSettings) },
+    ],
+  },
+  {
     element: <Layout />,
     children: [
       { path: "/", element: wrap(Home) },
       { path: "/agent", element: wrap(Agent) },
       { path: "/runtime", element: wrap(Runtime) },
+      { path: "/market-morning-ops", element: wrap(MarketMorningOperations) },
       { path: "/reports", element: wrap(Reports) },
       { path: "/settings", element: wrap(Settings) },
       { path: "/runs/:runId", element: wrap(RunDetail) },

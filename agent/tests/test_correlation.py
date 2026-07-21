@@ -24,6 +24,10 @@ class TestInferMarket:
         assert infer_market("AAPL") == "us_equity"
         assert infer_market("SPY") == "us_equity"
 
+    def test_global_indices(self):
+        assert infer_market("SP500.INDEX") == "global_index"
+        assert infer_market("^N225") == "global_index"
+
     def test_hk_leading_zero_tickers(self):
         # Leading-zero HK tickers like 0700.HK / 0005.HK must be classified as
         # hk_equity, NOT a_share (which also starts with 0)
@@ -92,6 +96,9 @@ class TestNormalizeSymbol:
     def test_case_and_whitespace_normalized(self):
         assert _normalize_symbol(" aapl ", "us_equity") == "AAPL.US"
 
+    def test_index_alias_normalized(self):
+        assert _normalize_symbol("^GSPC", "global_index") == "SP500.INDEX"
+
 
 class TestFetchFallsThroughChain:
     """A loader that is available but returns no data must not end the search.
@@ -149,6 +156,8 @@ class TestFetchFallsThroughChain:
         result = compute_correlation_matrix(codes=["AAPL", "SPY"], days=30)
         assert result["labels"] == ["AAPL", "SPY"]
         assert result["matrix"][0][1] == pytest.approx(1.0)  # identical series
+        assert result["alignment"]["basis"] == "session_date"
+        assert result["alignment"]["join"] == "inner"
 
 
 class TestRollingCorrelationMatrix:

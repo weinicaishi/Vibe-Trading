@@ -1,0 +1,77 @@
+{
+  "fixture_kind": "synthetic",
+  "note": "Engineering benchmark only. Replace with a reviewed, licensed T1 benchmark before release.",
+  "catalog": [
+    {"issuer_id": "issuer-01", "issuer_code": "1001", "legal_name_ja": "株式会社青空テクノロジー", "market_segment": "プライム", "approved_aliases": ["青空テック", "青空"]},
+    {"issuer_id": "issuer-02", "issuer_code": "1002", "legal_name_ja": "日本未来製作所株式会社", "market_segment": "スタンダード", "approved_aliases": ["日本未来", "未来製作所"]},
+    {"issuer_id": "issuer-03", "issuer_code": "1003", "legal_name_ja": "株式会社さくら銀行", "market_segment": "プライム", "approved_aliases": ["さくら銀", "さくら"]},
+    {"issuer_id": "issuer-04", "issuer_code": "1004", "legal_name_ja": "東京ロボティクス株式会社", "market_segment": "グロース", "approved_aliases": ["東ロボ", "東京ロボ"]},
+    {"issuer_id": "issuer-05", "issuer_code": "1005", "legal_name_ja": "株式会社北海食品", "market_segment": "スタンダード", "approved_aliases": ["北海フーズ", "北海"]},
+    {"issuer_id": "issuer-06", "issuer_code": "1006", "legal_name_ja": "関西エネルギー株式会社", "market_segment": "プライム", "approved_aliases": ["関西エネ"]},
+    {"issuer_id": "issuer-07", "issuer_code": "1007", "legal_name_ja": "株式会社富士医療システム", "market_segment": "グロース", "approved_aliases": ["富士医療", "富士メディカル"]},
+    {"issuer_id": "issuer-08", "issuer_code": "1008", "legal_name_ja": "九州物流ホールディングス株式会社", "market_segment": "スタンダード", "approved_aliases": ["九州物流", "九物HD"]},
+    {"issuer_id": "issuer-09", "issuer_code": "987A", "legal_name_ja": "株式会社瀬戸内半導体", "market_segment": "グロース", "approved_aliases": ["瀬戸内セミコン", "瀬戸半"]},
+    {"issuer_id": "issuer-10", "issuer_code": "9A76", "legal_name_ja": "東北AIソリューションズ株式会社", "market_segment": "グロース", "approved_aliases": ["東北AI", "東北エーアイ"]}
+  ],
+  "cases": [
+    {"query": "1001", "target": "1001"},
+    {"query": "（株）青空テクノロジー", "target": "1001"},
+    {"query": "青空テク", "target": "1001"},
+    {"query": "青空テック", "target": "1001"},
+    {"query": "青空", "target": "1001"},
+
+    {"query": "１００２", "target": "1002"},
+    {"query": "日本未来製作所株式会社", "target": "1002"},
+    {"query": "日本未来製", "target": "1002"},
+    {"query": "日本未来", "target": "1002"},
+    {"query": "未来製", "target": "1002"},
+
+    {"query": "1003", "target": "1003"},
+    {"query": "株式会社 さくら銀行", "target": "1003"},
+    {"query": "さくら銀", "target": "1003"},
+    {"query": "さくら銀行", "target": "1003"},
+    {"query": "さくら", "target": "1003"},
+
+    {"query": "1004", "target": "1004"},
+    {"query": "東京・ロボティクス（株）", "target": "1004"},
+    {"query": "東京ロボティ", "target": "1004"},
+    {"query": "東京ロボ", "target": "1004"},
+    {"query": "東ロボ", "target": "1004"},
+
+    {"query": "1005", "target": "1005"},
+    {"query": "（株）北海食品", "target": "1005"},
+    {"query": "北海食", "target": "1005"},
+    {"query": "北海フーズ", "target": "1005"},
+    {"query": "北海", "target": "1005"},
+
+    {"query": "1006", "target": "1006"},
+    {"query": "関西エネルギー株式会社", "target": "1006"},
+    {"query": "関西エネル", "target": "1006"},
+    {"query": "関西エネ", "target": "1006"},
+    {"query": "関西エ", "target": "1006"},
+
+    {"query": "1007", "target": "1007"},
+    {"query": "株式会社富士医療システム", "target": "1007"},
+    {"query": "富士医療シ", "target": "1007"},
+    {"query": "富士医療", "target": "1007"},
+    {"query": "富士メディ", "target": "1007"},
+
+    {"query": "1008", "target": "1008"},
+    {"query": "九州物流ホールディングス（株）", "target": "1008"},
+    {"query": "九州物流ホール", "target": "1008"},
+    {"query": "九州物流", "target": "1008"},
+    {"query": "九物", "target": "1008"},
+
+    {"query": "987a", "target": "987A"},
+    {"query": "（株）瀬戸内半導体", "target": "987A"},
+    {"query": "瀬戸内半", "target": "987A"},
+    {"query": "瀬戸内セミコン", "target": "987A"},
+    {"query": "瀬戸半", "target": "987A"},
+
+    {"query": "９Ａ７６", "target": "9A76"},
+    {"query": "東北ＡＩソリューションズ株式会社", "target": "9A76"},
+    {"query": "東北AIソリュ", "target": "9A76"},
+    {"query": "東北AI", "target": "9A76"},
+    {"query": "東北エー", "target": "9A76"}
+  ]
+}

@@ -62,7 +62,9 @@ Decide which workflow to use based on the request:
 
      **Layer 2 — Beta Regression** (if backtest spans >60 trading days):
      - Fetch benchmark daily returns using `get_market_data`:
-       A-shares → CSI 300 (000300.SH), US equities → S&P 500 (SPY), crypto → BTC (BTC-USDT)
+       A-shares → CSI 300 (000300.SH), US equities → S&P 500 (SPY), crypto → BTC (BTC-USDT).
+       For research-only index comparison, use canonical symbols such as SP500.INDEX;
+       never silently replace an index request with SPY/QQQ/DIA.
        For multi-market backtests: use the benchmark matching the majority market by trade count; if no single market exceeds 50%, use equal-weighted composite
      - Compute strategy daily returns from `artifacts/equity.csv`
      - OLS regression: R_strategy = α + β × R_benchmark

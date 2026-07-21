@@ -54,7 +54,7 @@ def _intraday_stamped_row(date_str: str, open_, high, low, close, volume):
 
 
 class TestSymbolGating:
-    """_is_supported accepts US/HK/India suffixes only."""
+    """_is_supported accepts equities and canonical global indices."""
 
     def test_accepts_us(self):
         assert _is_supported("AAPL.US") is True
@@ -69,10 +69,23 @@ class TestSymbolGating:
         assert _is_supported("reliance.ns") is True
         assert _is_supported("500325.BO") is True
 
+    def test_accepts_canonical_indices(self):
+        assert _is_supported("NIKKEI225.INDEX") is True
+        assert _is_supported("SP500.INDEX") is True
+
     def test_rejects_others(self):
         assert _is_supported("601398.SH") is False
         assert _is_supported("BTC-USDT") is False
         assert _is_supported("") is False
+
+    def test_provider_symbol_only_used_at_client_boundary(self):
+        loader = DataLoader()
+        with patch("backtest.loaders.yahoo_loader.yahoo_client.get_chart", return_value=[
+            _row("2026-07-16", 100, 101, 99, 100.5, 0),
+        ]) as get_chart:
+            result = loader.fetch(["SP500.INDEX"], "2026-07-01", "2026-07-17")
+        assert "SP500.INDEX" in result
+        assert get_chart.call_args.args[0] == "^GSPC"
 
 
 class TestIntervalMap:
@@ -297,6 +310,6 @@ class TestLoaderMetadata:
     def test_name_and_markets(self):
         loader = DataLoader()
         assert loader.name == "yahoo"
-        assert loader.markets == {"us_equity", "hk_equity", "india_equity"}
+        assert loader.markets == {"us_equity", "hk_equity", "india_equity", "global_index"}
         assert loader.requires_auth is False
         assert loader.is_available() is True

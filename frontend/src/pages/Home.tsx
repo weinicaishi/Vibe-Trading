@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Bot, BarChart3, Zap, UserCircle2, MessageSquarePlus, SearchCode, LineChart, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { IndexOverview } from "@/components/market/IndexOverview";
 
 export function Home() {
   const { t } = useTranslation();
@@ -63,6 +64,8 @@ export function Home() {
           </div>
         ))}
       </div>
+
+      <IndexOverview />
     </div>
   );
 }

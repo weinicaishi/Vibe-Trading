@@ -94,3 +94,25 @@ export function abbreviateNum(v: number): string {
   if (abs >= 1e4) return (v / 1e3).toFixed(0) + "K";
   return v.toLocaleString();
 }
+
+export function formatMarketNumber(value: number | null | undefined, locale = i18n.language): string {
+  if (value == null || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export function formatMarketDateTime(
+  asOfUtc: string,
+  locale = i18n.language,
+  displayTimeZone = "UTC",
+): string {
+  const date = new Date(asOfUtc);
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: displayTimeZone,
+  }).format(date);
+}

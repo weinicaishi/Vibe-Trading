@@ -24,6 +24,8 @@ const RTL_CODES = new Set<SupportedLanguageCode>(
   SUPPORTED_LANGUAGES.filter((l) => l.dir === "rtl").map((l) => l.code),
 );
 
+const DEFAULT_LANGUAGE = import.meta.env.VITE_DEFAULT_LANGUAGE || "ja";
+
 export function isRtl(code: string): boolean {
   if (RTL_CODES.has(code as SupportedLanguageCode)) return true;
   // Handle regional variants: "ar-EG" → match "ar", "he-IL" → match "he" (if added).
@@ -52,7 +54,7 @@ i18n
     // (persisted to localStorage) switches language. After a manual choice
     // the navigator value can act as a fallback when the saved language is
     // removed.
-    fallbackLng: "en",
+    fallbackLng: DEFAULT_LANGUAGE,
     supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
     // NOTE: Intentionally NOT using nonExplicitSupportedLngs — it strips
     // region codes from compound language keys like "zh-CN" which causes
@@ -74,7 +76,7 @@ i18n
 // Keep the <html dir/lang> attributes in sync with the active language so
 // RTL languages (Arabic today, Hebrew if added later) render correctly
 // without a page reload.
-applyDocumentDirection(i18n.language || "en");
+applyDocumentDirection(i18n.language || DEFAULT_LANGUAGE);
 i18n.on("languageChanged", (lng) => applyDocumentDirection(lng));
 // Re-apply after async detection resolves — the synchronous call above may
 // fire before LanguageDetector finishes, causing a brief LTR flash for RTL
