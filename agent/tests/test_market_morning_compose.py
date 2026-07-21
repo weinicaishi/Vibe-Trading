@@ -27,6 +27,7 @@ def test_market_morning_runtime_is_opt_in_and_separate_from_api() -> None:
         "/opt/venv/bin/vibe-trading-market-morning"
     ]
     assert runtime["env_file"] == ["agent/.env"]
+    assert runtime["healthcheck"] == {"disable": True}
     assert "environment" not in runtime
     assert "ports" not in runtime
     assert runtime["command"] != api.get("command")

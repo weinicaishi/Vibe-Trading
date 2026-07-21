@@ -60,6 +60,8 @@ docker compose --profile market-morning up -d market-morning-runtime
 ```
 
 默认 profile 不会启动 worker/scheduler。不得通过增加 restart 次数绕过配置或外部 preflight 失败。
+该 service 已禁用共享 API 镜像的 `:8899/live` healthcheck；worker 不监听 HTTP 端口，值班判断应以容器
+进程状态、启动日志中的稳定错误码、runtime preflight 和运营指标为准，不得因缺少 API health 状态重启它。
 
 1. `ready` 必须为 `200 / ready`，数据库 schema 必须精确为当前 runtime revision。
 2. `deployment-preflight` 必须为 `200 / configuration_ready` 且 `blocking_checks=[]`。该结果仅证明

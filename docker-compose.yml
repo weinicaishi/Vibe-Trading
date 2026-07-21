@@ -71,6 +71,11 @@ services:
       - agent/.env
     command:
       - /opt/venv/bin/vibe-trading-market-morning
+    # The shared image healthcheck probes the API's /live endpoint on 8899.
+    # This worker intentionally exposes no HTTP server, so inheriting that
+    # check would mark a healthy scheduler/worker process as unhealthy.
+    healthcheck:
+      disable: true
     init: true
     cap_drop:
       - ALL

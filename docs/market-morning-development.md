@@ -39,7 +39,9 @@ VIBE_MARKET_MORNING_ALLOW_FIXTURE_RUNTIME=false
 docker compose --profile market-morning up -d market-morning-runtime
 ```
 
-该服务与 API 分离、不发布端口、使用只读根文件系统，并以 `on-failure:5` 限制启动失败重试；数据库
+该服务与 API 分离、不发布端口、使用只读根文件系统，并以 `on-failure:5` 限制启动失败重试。它会
+显式禁用共享 API 镜像中探测 `:8899/live` 的 HTTP healthcheck，因为 worker 不提供 HTTP 服务；运行健康
+必须由进程退出状态、runtime preflight 和运营指标判断，不能用不存在的 API 端口判断。数据库
 revision、provider bundle 或五项 preflight 不满足时会退出而不是领取任务。默认 role 为 `all`，即同一
 runtime 进程内运行 durable worker 和带数据库 lease 的 scheduler；需要按角色拆成多个部署实例时，分别
 注入 `VIBE_MARKET_MORNING_RUNTIME_ROLE=worker` 和 `scheduler`，但不得同时运行默认 `all` 实例。
