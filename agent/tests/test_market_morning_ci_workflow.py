@@ -16,6 +16,13 @@ def test_ci_workflow_is_valid_yaml() -> None:
     assert yaml.compose(_workflow_text()) is not None
 
 
+def test_ci_runs_on_main_and_release_branch_pushes() -> None:
+    workflow = _workflow_text()
+
+    assert "      - main\n      - \"release/**\"" in workflow
+    assert "pull_request:\n    branches: [main]" in workflow
+
+
 def test_ci_runs_isolated_real_mysql_acceptance_and_migration() -> None:
     workflow = _workflow_text()
 
