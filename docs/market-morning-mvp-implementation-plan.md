@@ -2,12 +2,14 @@
 
 > 状态：Sprint 0–7 的工程主体已形成，当前处于准上线缺口收口与外部 T1 Gate 验证阶段；完成度与证据见
 > [MVP 完成度审计](./market-morning-mvp-completion-audit.md)。
-> 本次文档校准所依据的不可变候选为 `4a60a57134e878ae8aeb623bb93dc59ca3240ada`：本地后端
-> `6301 passed, 24 skipped`，前端 production build 与 `341 passed`，远程专用 MySQL
-> acceptance `12/12`、migration rehearsal `3/3`；GitHub Actions run `29888519663` 的九项
-> release-candidate 基线已推进到 runtime schema `0018_market_morning_auth_sessions`；
-> 新增会话撤销能力需在新的 CI/release-candidate 证据生成后重新封版。
-> 这些 CI 证据固定不计连续 staging 日或 T1 发布证据；产品主库仍为 `0004` 且未执行迁移。
+> 本次文档校准所依据的本地不可变候选为 `e4a10ec7b1f41b14b8d6a3515397e721e60566fb`：无真实
+> `.env` 的整仓后端 `6317 passed, 25 skipped`，前端 production build 与 `342 passed`，远程专用
+> MySQL acceptance `12/12`、migration rehearsal `3/3`；九项 release-candidate 检查全绿，runtime
+> schema 为 `0018_market_morning_auth_sessions`，16 个固定发布源文件和 5 份验证证据 hash 完整，
+> manifest SHA-256 为 `8745fa64db9e02a85ffc5e4e4cf3ba2516031174b2157d8cbf268b2e74fe5b3c`。
+> 远端发布线必须由 GitHub Actions 对最终同一 revision 独立复验；本地 manifest 不替代 CI。
+> 本地/CI 证据均固定不计连续 staging 日或 T1 发布证据。产品主库仍为 `0004`
+> 且未执行迁移。
 >
 > 上位规格：[Market Morning MVP v3](./market-morning-mvp-v3-xmind.md)。本计划不改变其中的产品边界；如有冲突，以 v3 为准，先更新 v3 再实施。
 
@@ -314,12 +316,13 @@ calendar contract、MySQL 连通性和精确 `0018` revision。生产 worker 还
 顺序执行 licensed sources、market snapshots、EventBrief model、source reachability、email
 delivery 五个 deployment-owned 无副作用探针；缺项、异常或 10 秒超时均以脱敏错误码拒绝启动。
 fixture／缺配置／旧 schema 均拒绝启动；scheduler 与 worker 共用 SIGINT/SIGTERM stop event。当前直接按
-`agent/tests/test_market_morning_*.py` 运行的普通 Market Morning 回归为 867 项通过、15 项按默认安全策略跳过；隔离 MySQL 8.0 与远程专用验收库上的 12 项业务 probe、3 项
+`agent/tests/test_market_morning_*.py` 运行的普通 Market Morning 回归为 885 项通过、15 项按默认安全策略跳过；隔离 MySQL 8.0 与远程专用验收库上的 12 项业务 probe、3 项
 破坏性 migration probe 均已分别 12/12、3/3 通过。远程并发验收还发现并修正了 current global run
 切换时的同表更新顺序：先单独 flush 旧版本 demotion，再 promotion 新版本，避免 MySQL generated
-unique key 观察到瞬时双 current。前端最近一次回归为 341 项通过且生产构建成功，迁移 head 已推进到
+unique key 观察到瞬时双 current。前端最近一次回归为 342 项通过且生产构建成功，迁移 head 已推进到
 `0018`；空库 bootstrap 包含 34 张业务表、精确 revision 与
-`varchar(64)` 版本字段，`0016 -> 0017` 和 `0017 -> 0016 -> 0017` 也已在线验证。
+`varchar(64)` 版本字段，最新专用数据库的空库升级与破坏性迁移演练已分别以
+`12/12` 和 `3/3` 通过。
 
 生产 provider-neutral adapter 现已补齐：JPX／美国日历在进程启动前从精确 HTTPS/path allowlist
 异步加载完整、无缺日且有 freshness/coverage 的 strict manifest，scheduler 只读取不可变同步日历，
@@ -479,7 +482,7 @@ deployment session 撤权 validator、对 issuer-scoped subject 做不可逆伪�
 5. 完成私测 invite、停用、邮箱退订、数据导出/删除和后台角色权限流程。
 6. 对照 v3 的 T1 Gate 逐项签字：搜索、日历、去重、撤回、引用、失败、邮件幂等、非活跃降级。
 
-**当前进度（2026-07-22）：** 独立认证保护的运营摘要、内部看板、OpenMetrics 1.0 聚合指标出口、
+**当前进度（2026-07-23）：** 独立认证保护的运营摘要、内部看板、OpenMetrics 1.0 聚合指标出口、
 EventBrief 批准/拒绝、仅停发的 publication halt 控制和审计已完成；运行手册已覆盖 07:00 前检查、失败分类、重跑条件、停发、
 修订/撤回、支持/删除边界、告警阈值和 staging 场景。一次性 hash-only 私测邀请、邀请撤销、用户
 停用/恢复、认证用户 JSON 数据导出、删除申请自动排队与幂等删除 worker 已完成；运营页面可发行
@@ -491,14 +494,13 @@ onboarding principal 在未配置内置 OIDC 或审核后的自定义 factory �
 每次请求即时取 token；产品壳与运营页均具备登录、登出、初始化失败重试，产品请求不复用旧 API Key，
 注册运营 provider/lifecycle 后也不会回退旧 key。内置 Auth0 SDK wrapper 已完成 PKCE、memory cache、
 rotating refresh token、callback 清理、refresh-token revoke 与 provider logout；真实 tenant/application、
-允许 URL、role Action 和撤权仍须在 staging 验收。内置 factory 的静态预检已增加 issuer/JWKS/audience/session validator/role mapping 稳定阻断码，
+允许 URL、Post-Login Action 和两个 SPA 的 User-delegated Access 已配置。内置 factory 的静态预检已增加 issuer/JWKS/audience/session validator/role mapping 稳定阻断码，
 PyJWT crypto 也进入核心哈希锁依赖。
-真实 provider usage/费率样本、生产产品/运营 OIDC 的实际 issuer/audience/session/角色撤销、真实
-Auth0 tenant 的跨页面/跨会话 E2E、外部 adapter 和连续 5 日 staging 演练仍未完成；远程 MySQL
-12+3 已在 2026-07-22 重新通过，但生产主库
-仍需从 `0004` 维护升级到 `0017`。产品库已新增独立的 fail-closed schema change job：先做只读
+真实 provider usage/费率样本、900 秒新 access token 下的产品/运营 OIDC 跨页面与跨会话 E2E、
+精确 token 撤销、外部 adapter 和连续 5 日 staging 演练仍未完成；远程 MySQL 12+3
+已在 2026-07-23 重新通过，但生产主库仍需从 `0004` 维护升级到 `0018`。产品库已新增独立的 fail-closed schema change job：先做只读
 revision/表数预检，正式执行必须提供备份证据 hash、变更单、维护窗口、runtime 停止和不自动
-downgrade 的显式确认；升级后精确校验 `0017`/33 表并输出不含凭据的 hash-only manifest。真正产品库
+downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含凭据的 hash-only manifest。真正产品库
 变更仍须单独审批。T0 本地自动演练 runner 已把运行手册
 12 个场景固化为 pytest probes，失败不会中止其余场景，并输出只含 node ID、exit code、耗时与
 输出 SHA-256 的 JSON manifest；2026-07-21 参考报告为 12/12 通过。报告固定标记
@@ -506,9 +508,9 @@ downgrade 的显式确认；升级后精确校验 `0017`/33 表并输出不含�
 开关继续关闭，Sprint 7 仍为进行中。已按哈希锁文件补齐全仓库运行依赖，并在开发依赖中声明
 `pytest-asyncio`；生产日历/行情与 runtime strict assembly 落地后，直接按
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
-`867 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
+`885 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
-`6301 passed, 24 skipped`，无失败或错误；24 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
+`6317 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有
 lint 债务；Market Morning 范围 Ruff 已通过，两个范围必须分别记录。
 指标出口与运营摘要共用同一隐私安全 read model，输出健康度、告警、来源状态、job／brief／投递／
