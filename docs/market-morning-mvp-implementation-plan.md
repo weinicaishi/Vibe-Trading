@@ -5,7 +5,8 @@
 > 本次文档校准所依据的不可变候选为 `4a60a57134e878ae8aeb623bb93dc59ca3240ada`：本地后端
 > `6301 passed, 24 skipped`，前端 production build 与 `341 passed`，远程专用 MySQL
 > acceptance `12/12`、migration rehearsal `3/3`；GitHub Actions run `29888519663` 的九项
-> release-candidate 检查全部通过，runtime schema 为 `0017_market_morning_content_reports`。
+> release-candidate 基线已推进到 runtime schema `0018_market_morning_auth_sessions`；
+> 新增会话撤销能力需在新的 CI/release-candidate 证据生成后重新封版。
 > 这些 CI 证据固定不计连续 staging 日或 T1 发布证据；产品主库仍为 `0004` 且未执行迁移。
 >
 > 上位规格：[Market Morning MVP v3](./market-morning-mvp-v3-xmind.md)。本计划不改变其中的产品边界；如有冲突，以 v3 为准，先更新 v3 再实施。
@@ -309,7 +310,7 @@ hash 幂等写入和“缺项／交易日错位／重复候选即阻止发布”
 `draft → running`，加载指定 provider 的五项快照，Gate 失败时持久化 failed run 且不发布，
 成功时写有序 manifest、保留旧版本并通过 generated unique key 切换唯一 current success。
 默认关闭的 `vibe-trading-market-morning` 进程入口已完成：启动前验证完整 handler、licensed
-calendar contract、MySQL 连通性和精确 `0017` revision。生产 worker 还会在创建 task 前按固定
+calendar contract、MySQL 连通性和精确 `0018` revision。生产 worker 还会在创建 task 前按固定
 顺序执行 licensed sources、market snapshots、EventBrief model、source reachability、email
 delivery 五个 deployment-owned 无副作用探针；缺项、异常或 10 秒超时均以脱敏错误码拒绝启动。
 fixture／缺配置／旧 schema 均拒绝启动；scheduler 与 worker 共用 SIGINT/SIGTERM stop event。当前直接按
@@ -317,7 +318,7 @@ fixture／缺配置／旧 schema 均拒绝启动；scheduler 与 worker 共用 S
 破坏性 migration probe 均已分别 12/12、3/3 通过。远程并发验收还发现并修正了 current global run
 切换时的同表更新顺序：先单独 flush 旧版本 demotion，再 promotion 新版本，避免 MySQL generated
 unique key 观察到瞬时双 current。前端最近一次回归为 341 项通过且生产构建成功，迁移 head 已推进到
-`0017`；空库 bootstrap 已直接导入 MySQL 8 空库并核对 33 张业务表、精确 revision 与
+`0018`；空库 bootstrap 包含 34 张业务表、精确 revision 与
 `varchar(64)` 版本字段，`0016 -> 0017` 和 `0017 -> 0016 -> 0017` 也已在线验证。
 
 生产 provider-neutral adapter 现已补齐：JPX／美国日历在进程启动前从精确 HTTPS/path allowlist

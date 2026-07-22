@@ -23,6 +23,7 @@ from src.market_morning.account_privacy import (
 )
 from src.market_morning.models import (
     AccountDeletionRequest,
+    ApplicationSessionRecord,
     AuditLog,
     Base,
     DeliveryAttemptRecord,
@@ -44,6 +45,10 @@ from src.market_morning.models import (
     SourceRecord,
     User,
     UserConsent,
+)
+from src.market_morning.session_ledger import (
+    ApplicationSessionValidator,
+    pseudonymous_oidc_subject_reference,
 )
 from src.market_morning.event_brief_generation import EventBriefGenerationSpec
 from src.market_morning.global_runs import (
@@ -126,8 +131,12 @@ def _require_confirmed_acceptance_target() -> None:
 
 def test_mysql_schema_and_session_contract() -> None:
     _require_confirmed_acceptance_target()
+    session_reference = f"mysql-acceptance-session-{uuid4()}"
+    issuer = "https://identity.acceptance.example/market-morning"
+    subject = f"acceptance-subject-{uuid4()}"
+    external_subject = pseudonymous_oidc_subject_reference(issuer, subject)
 
-    async def verify() -> tuple[str, str, str, str, str, frozenset[str]]:
+    async def verify():
         await reset_database_state()
         try:
             engine = get_engine()
@@ -159,7 +168,7 @@ def test_mysql_schema_and_session_contract() -> None:
                     .scalars()
                     .all()
                 )
-                return (
+                database_contract = (
                     str(version),
                     str(session_timezone),
                     str(connection_charset),
@@ -167,9 +176,51 @@ def test_mysql_schema_and_session_contract() -> None:
                     str(revision),
                     frozenset(str(name) for name in table_names),
                 )
+            factory = get_session_factory()
+            validator = ApplicationSessionValidator(claim_name="sid", session_factory=factory)
+            now = int(datetime.now(timezone.utc).timestamp())
+            claims = {
+                "iss": issuer,
+                "sub": subject,
+                "sid": session_reference,
+                "iat": now - 5,
+                "exp": now + 895,
+            }
+            first, second = await asyncio.gather(
+                validator("token-one", claims),
+                validator("token-two", claims),
+            )
+            async with factory() as session:
+                row_count = int(
+                    (
+                        await session.execute(
+                            select(func.count())
+                            .select_from(ApplicationSessionRecord)
+                            .where(ApplicationSessionRecord.external_subject == external_subject)
+                        )
+                    ).scalar_one()
+                )
+            revoked = await validator.revoke_claims(claims, reason="logout")
+            rejected_after_revocation = not await validator("token-three", claims)
+            return (
+                database_contract,
+                first,
+                second,
+                row_count,
+                revoked,
+                rejected_after_revocation,
+            )
         finally:
+            factory = get_session_factory()
+            async with factory.begin() as session:
+                await session.execute(
+                    delete(ApplicationSessionRecord).where(
+                        ApplicationSessionRecord.external_subject == external_subject
+                    )
+                )
             await reset_database_state()
 
+    contract, first, second, row_count, revoked, rejected_after_revocation = asyncio.run(verify())
     (
         version,
         session_timezone,
@@ -177,7 +228,7 @@ def test_mysql_schema_and_session_contract() -> None:
         database_charset,
         revision,
         table_names,
-    ) = asyncio.run(verify())
+    ) = contract
 
     assert version.split(".", maxsplit=1)[0] == "8"
     assert "mariadb" not in version.lower()
@@ -186,6 +237,10 @@ def test_mysql_schema_and_session_contract() -> None:
     assert database_charset == "utf8mb4"
     assert revision == EXPECTED_MARKET_MORNING_SCHEMA_REVISION
     assert table_names == frozenset(Base.metadata.tables)
+    assert first is True and second is True
+    assert row_count == 1
+    assert revoked is True
+    assert rejected_after_revocation is True
 
 
 def test_mysql_job_enqueue_is_concurrent_and_idempotent() -> None:

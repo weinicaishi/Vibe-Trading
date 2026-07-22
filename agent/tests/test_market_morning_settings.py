@@ -37,9 +37,10 @@ NOW = datetime(2026, 7, 20, 23, 30, 0)
 
 
 class _Result:
-    def __init__(self, *, scalar=None, rows=None):
+    def __init__(self, *, scalar=None, rows=None, rowcount=0):
         self._scalar = scalar
         self._rows = rows or []
+        self.rowcount = rowcount
 
     def scalar_one_or_none(self):
         return self._scalar
@@ -72,6 +73,7 @@ class _Session:
 def _user(*, email_opt_in: bool = False, status: str = "active"):
     return SimpleNamespace(
         user_id=USER_ID,
+        external_subject="oidc:subject-hash",
         account_status=status,
         deleted_at=None,
         timezone="Asia/Tokyo",
@@ -179,7 +181,11 @@ def test_update_settings_rejects_non_jst_timezone_before_database_access() -> No
 
 def test_consent_acceptance_is_versioned_audited_and_idempotent() -> None:
     user = _user(email_opt_in=True)
-    create_session = _Session(_Result(scalar=user), _Result(scalar=None))
+    create_session = _Session(
+        _Result(scalar=user),
+        _Result(rowcount=1),
+        _Result(scalar=None),
+    )
     created = asyncio.run(
         set_consent_acceptance(
             create_session,
@@ -192,12 +198,8 @@ def test_consent_acceptance_is_versioned_audited_and_idempotent() -> None:
     )
 
     assert created.status == ConsentMutationStatus.ACCEPTED
-    consent = next(
-        value for value in create_session.added if isinstance(value, UserConsent)
-    )
-    event = next(
-        value for value in create_session.added if isinstance(value, AnalyticsEvent)
-    )
+    consent = next(value for value in create_session.added if isinstance(value, UserConsent))
+    event = next(value for value in create_session.added if isinstance(value, AnalyticsEvent))
     assert consent.consent_version == "2026-07-01"
     assert event.properties["consent_type"] == "risk_disclosure"
 
@@ -257,7 +259,11 @@ def test_deletion_request_is_pending_audited_and_idempotent(monkeypatch) -> None
 
     monkeypatch.setattr(settings, "enqueue_job", enqueue)
     user = _user(email_opt_in=True)
-    create_session = _Session(_Result(scalar=user), _Result(scalar=None))
+    create_session = _Session(
+        _Result(scalar=user),
+        _Result(rowcount=1),
+        _Result(scalar=None),
+    )
     created = asyncio.run(
         create_account_deletion_request(
             create_session,
@@ -267,14 +273,8 @@ def test_deletion_request_is_pending_audited_and_idempotent(monkeypatch) -> None
     )
 
     assert created.status == DeletionRequestStatus.REQUESTED
-    request = next(
-        value
-        for value in create_session.added
-        if isinstance(value, AccountDeletionRequest)
-    )
-    event = next(
-        value for value in create_session.added if isinstance(value, AnalyticsEvent)
-    )
+    request = next(value for value in create_session.added if isinstance(value, AccountDeletionRequest))
+    event = next(value for value in create_session.added if isinstance(value, AnalyticsEvent))
     assert request.status == "pending"
     assert event.properties == {"request_status": "pending"}
     assert user.account_status == "deletion_pending"
@@ -283,6 +283,7 @@ def test_deletion_request_is_pending_audited_and_idempotent(monkeypatch) -> None
 
     repeat_session = _Session(
         _Result(scalar=_user(status="deletion_pending")),
+        _Result(rowcount=0),
         _Result(scalar=request),
     )
     repeated = asyncio.run(
@@ -308,16 +309,16 @@ def test_deletion_request_enqueues_one_idempotent_background_job(monkeypatch) ->
         return SimpleNamespace(status="enqueued")
 
     monkeypatch.setattr(settings, "enqueue_job", enqueue)
-    session = _Session(_Result(scalar=_user()), _Result(scalar=None))
-
-    result = asyncio.run(
-        create_account_deletion_request(session, user_id=USER_ID, now=NOW)
+    session = _Session(
+        _Result(scalar=_user()),
+        _Result(rowcount=1),
+        _Result(scalar=None),
     )
+
+    result = asyncio.run(create_account_deletion_request(session, user_id=USER_ID, now=NOW))
 
     assert result.status == DeletionRequestStatus.REQUESTED
-    request = next(
-        value for value in session.added if isinstance(value, AccountDeletionRequest)
-    )
+    request = next(value for value in session.added if isinstance(value, AccountDeletionRequest))
     assert calls == [
         {
             "job_type": settings.MarketMorningJobType.ACCOUNT_DELETION,

@@ -50,6 +50,7 @@ describe("Market Morning Auth0 frontend deployment adapter", () => {
     localStorage.clear();
     sessionStorage.clear();
     window.history.replaceState(null, "", "/");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
   });
 
   afterEach(() => {
@@ -58,6 +59,7 @@ describe("Market Morning Auth0 frontend deployment adapter", () => {
     localStorage.clear();
     sessionStorage.clear();
     window.history.replaceState(null, "", "/");
+    vi.unstubAllGlobals();
   });
 
   it("registers isolated product and operator clients with memory-only token caches", async () => {
@@ -119,6 +121,13 @@ describe("Market Morning Auth0 frontend deployment adapter", () => {
     expect(product.revokeRefreshToken).toHaveBeenCalledWith({
       audience: ENVIRONMENT.VITE_MARKET_MORNING_AUTH0_AUDIENCE,
     });
+    expect(fetch).toHaveBeenCalledWith(
+      "/market-morning/auth/session",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer access-token" },
+        method: "DELETE",
+      }),
+    );
     expect(product.logout).toHaveBeenCalledWith({
       logoutParams: { returnTo: `${window.location.origin}/` },
     });

@@ -14,6 +14,7 @@ interface Auth0ScopeConfiguration {
   clientId: string;
   defaultReturnTo: string;
   domain: string;
+  logoutPath: string;
 }
 
 interface Auth0RedirectState {
@@ -91,6 +92,10 @@ function configuration(
     clientId,
     defaultReturnTo: scope === "product" ? "/market-morning" : "/market-morning-ops",
     domain: normalizeDomain(value(environment, "VITE_MARKET_MORNING_AUTH0_DOMAIN")),
+    logoutPath:
+      scope === "product"
+        ? "/market-morning/auth/session"
+        : "/market-morning/_internal/auth/session",
   };
 }
 
@@ -204,6 +209,20 @@ class MarketMorningAuth0Adapter implements MarketMorningAuthLifecycleAdapter {
   async logout(returnTo: string): Promise<void> {
     const destination = normalizeMarketMorningReturnTo(returnTo);
     const client = this.requireClient();
+    try {
+      const token = await this.getAccessToken();
+      if (token) {
+        await fetch(this.config.logoutPath, {
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: { Authorization: `Bearer ${token}` },
+          method: "DELETE",
+        });
+      }
+    } catch {
+      // The provider logout below still removes private UI and SDK state. The
+      // backend also enforces a short access-token lifetime as the fail-safe.
+    }
     try {
       await client.revokeRefreshToken({ audience: this.config.audience });
     } catch {

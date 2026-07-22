@@ -29,9 +29,10 @@ REQUEST_ID = "22222222-2222-4222-8222-222222222222"
 
 
 class _Result:
-    def __init__(self, *, scalar=None, mappings=()):
+    def __init__(self, *, scalar=None, mappings=(), rowcount=0):
         self.scalar = scalar
         self.mapping_rows = tuple(mappings)
+        self.rowcount = rowcount
 
     def scalar_one_or_none(self):
         return self.scalar
@@ -161,6 +162,7 @@ def test_deletion_anonymizes_identity_and_removes_all_private_child_data() -> No
     session = _Session(
         _Result(scalar=request),
         _Result(scalar=user),
+        _Result(rowcount=1),
         _Result(scalar=None),
     )
 
@@ -173,7 +175,7 @@ def test_deletion_anonymizes_identity_and_removes_all_private_child_data() -> No
         )
     )
 
-    sql = "\n".join(_mysql_sql(statement) for statement in session.statements[3:])
+    sql = "\n".join(_mysql_sql(statement) for statement in session.statements[4:])
     assert result.status == AccountDeletionProcessStatus.COMPLETED
     assert request.status == "completed"
     assert request.completed_at == NOW
@@ -244,9 +246,7 @@ def test_deletion_job_handler_validates_payload_and_classifies_database_failure(
         )
 
     handler = make_account_deletion_handler(runner=runner)
-    result = asyncio.run(
-        handler({"schema_version": 1, "request_id": REQUEST_ID})
-    )
+    result = asyncio.run(handler({"schema_version": 1, "request_id": REQUEST_ID}))
 
     assert calls == [
         {
@@ -268,9 +268,9 @@ def test_deletion_job_handler_validates_payload_and_classifies_database_failure(
         raise OperationalError("SELECT 1", {}, ConnectionError("secret DSN"))
 
     with pytest.raises(RetryableJobError) as raised:
-        asyncio.run(make_account_deletion_handler(runner=database_down)(
-            {"schema_version": 1, "request_id": REQUEST_ID}
-        ))
+        asyncio.run(
+            make_account_deletion_handler(runner=database_down)({"schema_version": 1, "request_id": REQUEST_ID})
+        )
     assert raised.value.error_code == "account_deletion_database_unavailable"
     assert "secret DSN" not in str(raised.value)
 
@@ -280,9 +280,9 @@ def test_deletion_job_handler_validates_payload_and_classifies_database_failure(
         raise AccountPrivacyRetryable("user-scoped job is still running")
 
     with pytest.raises(RetryableJobError) as retrying:
-        asyncio.run(make_account_deletion_handler(runner=user_job_running)(
-            {"schema_version": 1, "request_id": REQUEST_ID}
-        ))
+        asyncio.run(
+            make_account_deletion_handler(runner=user_job_running)({"schema_version": 1, "request_id": REQUEST_ID})
+        )
     assert retrying.value.error_code == "account_deletion_user_job_running"
 
 

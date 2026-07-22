@@ -65,40 +65,33 @@ class VerifiedMarketMorningOperator:
             or actor != actor.strip()
             or any(unicodedata.category(char).startswith("C") for char in actor)
         ):
-            raise AdminAuthConfigurationError(
-                "admin_auth_identity_contract_invalid"
-            )
+            raise AdminAuthConfigurationError("admin_auth_identity_contract_invalid")
         permissions = self.permissions
-        if (
-            not isinstance(permissions, frozenset)
-            or not permissions
-            or not permissions <= _OPERATOR_PERMISSIONS
-        ):
-            raise AdminAuthConfigurationError(
-                "admin_auth_identity_contract_invalid"
-            )
+        if not isinstance(permissions, frozenset) or not permissions or not permissions <= _OPERATOR_PERMISSIONS:
+            raise AdminAuthConfigurationError("admin_auth_identity_contract_invalid")
 
 
 AdminBearerVerifier = Callable[
     [str],
     Awaitable[VerifiedMarketMorningOperator],
 ]
+AdminBearerRevoker = Callable[[str], Awaitable[None]]
 
 
 @dataclass(frozen=True, slots=True)
 class MarketMorningAdminAuthAdapter:
     provider: str
     verify_bearer: AdminBearerVerifier
+    revoke_bearer: AdminBearerRevoker | None = None
 
     def __post_init__(self) -> None:
         if (
             not isinstance(self.provider, str)
             or not _PROVIDER_RE.fullmatch(self.provider)
             or not callable(self.verify_bearer)
+            or (self.revoke_bearer is not None and not callable(self.revoke_bearer))
         ):
-            raise AdminAuthConfigurationError(
-                "admin_auth_factory_contract_invalid"
-            )
+            raise AdminAuthConfigurationError("admin_auth_factory_contract_invalid")
 
 
 def load_admin_auth_adapter(factory_path: str) -> MarketMorningAdminAuthAdapter:
@@ -165,9 +158,7 @@ async def _verified_operator(
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Market Morning operator authentication is temporarily unavailable"
-            ),
+            detail=("Market Morning operator authentication is temporarily unavailable"),
         ) from error
     if credentials is None:
         raise _unauthorized()
@@ -184,16 +175,13 @@ async def _verified_operator(
         raise _unauthorized() from error
     except Exception as error:
         logger.warning(
-            "Market Morning operator verification failed: provider=%s "
-            "exception_type=%s",
+            "Market Morning operator verification failed: provider=%s exception_type=%s",
             adapter.provider,
             type(error).__name__,
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Market Morning operator authentication is temporarily unavailable"
-            ),
+            detail=("Market Morning operator authentication is temporarily unavailable"),
         ) from error
     if not isinstance(operator, VerifiedMarketMorningOperator):
         logger.warning(
@@ -202,9 +190,7 @@ async def _verified_operator(
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Market Morning operator authentication is temporarily unavailable"
-            ),
+            detail=("Market Morning operator authentication is temporarily unavailable"),
         )
     return operator
 
@@ -221,6 +207,40 @@ async def _require_permission(
             detail="Market Morning operator permission is unavailable",
         )
     return operator
+
+
+async def revoke_current_operator_session(
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+) -> None:
+    await _verified_operator(request, credentials)
+    config = get_env_config().market_morning
+    factory_path = config.admin_auth_factory.strip()
+    if not factory_path or credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=("Market Morning operator session revocation is temporarily unavailable"),
+        )
+    adapter = _load_configured_adapter(factory_path)
+    if adapter.revoke_bearer is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=("Market Morning operator session revocation is temporarily unavailable"),
+        )
+    try:
+        await adapter.revoke_bearer(credentials.credentials)
+    except MarketMorningAdminAuthenticationRejected as error:
+        raise _unauthorized() from error
+    except Exception as error:
+        logger.warning(
+            "Market Morning operator session revocation failed: provider=%s exception_type=%s",
+            adapter.provider,
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=("Market Morning operator session revocation is temporarily unavailable"),
+        ) from error
 
 
 async def require_operations_reader(
@@ -254,6 +274,7 @@ async def require_access_manager(
 __all__ = [
     "AdminAuthConfigurationError",
     "AdminBearerVerifier",
+    "AdminBearerRevoker",
     "MarketMorningAdminAuthAdapter",
     "MarketMorningAdminAuthenticationRejected",
     "OperatorPermission",
@@ -265,4 +286,5 @@ __all__ = [
     "require_content_reviewer",
     "require_operations_reader",
     "require_publication_controller",
+    "revoke_current_operator_session",
 ]

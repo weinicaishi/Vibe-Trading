@@ -413,6 +413,7 @@ POST  /market-morning/account-deletion-requests
   -> 0015_market_morning_beta_privacy
   -> 0016_market_morning_model_usage
   -> 0017_market_morning_content_reports
+  -> 0018_market_morning_auth_sessions
 ```
 
 `0007_market_morning_manual_overrides` 增加仅允许“停发”的运营覆盖：同一
@@ -529,6 +530,10 @@ provider 未返回 usage 时保存 `missing/unpriced`，返回 token 但没有�
 以固定 resolution code 标记 resolved／dismissed 并写审计。Alembic 默认的
 `version_num` 只有 32 位，而首个超长 revision 已在 `0004` 出现，因此空库迁移会在 `0001`
 开始时永久扩为 64 位；`0017` 仍保留兼容性扩宽，确保从旧 `0016` bootstrap 升级时同样安全。
+
+`0018_market_morning_auth_sessions` 增加 hash-only 应用会话账本。它不保存原始 access token、
+provider subject 或 session id；用户登出、账号停用与删除请求会即时撤销对应 session。已经撤销
+的 session 不会因账号重新启用而自动恢复，access token 有效期同时限制在 15 分钟以内。
 
 ## 交易日历与发布窗口
 
@@ -882,7 +887,7 @@ JPX/US 日历、source reachability callback 和 EventBrief model/source/email �
 adapter、两份 licensed calendar、EventBrief/邮件 ports 和五项 preflight，并从实际 adapter registry
 自动生成 `licensed_sources` 与 `market_snapshots` 两个只读 probe。自定义最终 runtime factory 仍受同一
 `MarketMorningRuntimeDependencies` contract 约束。启动前还会确认 handler 完整、JPX/US calendar contract、禁止
-fixture provider、数据库可连接且 `alembic_version` 精确为 `0017_market_morning_content_reports`。
+fixture provider、数据库可连接且 `alembic_version` 精确为 `0018_market_morning_auth_sessions`。
 生产 worker factory 还必须提供以下五个无副作用异步 preflight check：
 
 ```text
@@ -976,7 +981,7 @@ PYTHONPATH=agent .venv/bin/python -m src.market_morning.mysql_migration_rehearsa
 
 已安装项目也可运行 `vibe-trading-market-morning-mysql-migration-rehearsal`。三项 probe 依次验证：
 
-1. `base → head` 后 revision 精确为 `0017_market_morning_content_reports`，`mm_*` 表集合与 ORM metadata 一致；
+1. `base → head` 后 revision 精确为 `0018_market_morning_auth_sessions`，`mm_*` 表集合与 ORM metadata 一致；
 2. `base → 0016 → head` 后账户与私测邀请 sentinel 数据保留，并创建 content reports 表；
 3. `head → 0016 → head` 时只移除／恢复 content reports 表，0016 以前的 sentinel 数据在 roundtrip 中保持。
 
@@ -1022,7 +1027,7 @@ vibe-trading-market-morning-production-schema-change \
 ```
 
 命令仅在实际 revision 精确等于 `--expected-current-revision` 时执行固定的 `alembic upgrade head`；
-成功后必须同时得到 `0017_market_morning_content_reports` 和 33 张 `mm_*` 表。stdout/stderr 只保存
+成功后必须同时得到 `0018_market_morning_auth_sessions` 和 34 张 `mm_*` 表。stdout/stderr 只保存
 SHA-256，不保存 URL、凭据或变更单原文。失败时不会自动 downgrade，因为部分 DDL 已提交时自动回退
 可能扩大损坏；应保持 runtime 关闭、保留 manifest 和数据库状态，再按独立恢复审批处理。
 
@@ -1035,7 +1040,7 @@ CI 在普通后端测试、前端 build/test、真实 MySQL 12/12 acceptance 和
 - clean worktree，以及 `requirements-lock.txt`、`frontend/package-lock.json`、容器定义、CI workflow、
   当前 migration、0017 SQL/ZIP 和 monitoring rules 等固定发布源文件的 SHA-256；
 - 后端测试、前端 build、前端测试、MySQL acceptance 与 migration rehearsal 五份输出的 SHA-256；
-- 当前 runtime schema `0017_market_morning_content_reports`。
+- 当前 runtime schema `0018_market_morning_auth_sessions`。
 
 命令要求五个 evidence 名称精确出现一次，两个 MySQL JSON 还必须是相同环境的 `passed` 合同。
 manifest 只保存固定 artifact 名称、revision、检查状态、稳定阻断码和 hash，不保存工作区路径、Git
@@ -1185,7 +1190,7 @@ reference、证据 hash 或内容。
 
 获得 MySQL 连接信息后，需要补做以下集成验收：
 
-1. 在空库执行 `0001 -> 0017`，再从已有 `0016` 的升级库执行 `0017`；
+1. 在空库执行 `0001 -> 0018`，再从已有 `0017` 的升级库执行 `0018`；
 2. 并发写入相同来源版本，确认只保留一条 `mm_source_records`；
 3. 连续写入 active、corrected、withdrawn 三个版本，确认来源和事件历史完整串联；
 4. 模拟第二个文档失败，确认前一 durable cursor 未变化；
@@ -1204,7 +1209,7 @@ reference、证据 hash 或内容。
    payload hash 稳定；模拟模型失败、不可达来源和撤回事件，确认分别重试、阻断或安全降级；
 14. 对相同用户、日期、渠道并发创建邮件尝试，确认只有一条；模拟失败重试和 provider ID
    回写，确认原始邮箱与 deep-link token 从未进入业务表；
-15. 执行 `0017 -> 0016` 的 staging downgrade 演练，并确认 content reports 表移除后，0016 及以前的
+15. 执行 `0018 -> 0016` 的 staging downgrade 演练，并确认 auth sessions 与 content reports 表移除后，0016 及以前的
    私测邀请、账户、关注股、来源事件、用户朝刊、阅读状态、来源打开、job、人工停发、市场快照、
    全局刊期、EventBrief、投递尝试与 provider event 表仍保持完整；
 16. 对重复、乱序、未知 provider message ID 和无效签名分别回放 webhook，确认幂等、不倒退、

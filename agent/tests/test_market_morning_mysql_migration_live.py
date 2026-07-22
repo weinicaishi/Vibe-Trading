@@ -225,6 +225,7 @@ def test_mysql_migration_0016_data_survives_upgrade_to_head() -> None:
         assert head_revision == EXPECTED_MARKET_MORNING_SCHEMA_REVISION
         assert "mm_model_usage_events" in head_tables
         assert "mm_content_reports" in head_tables
+        assert "mm_auth_sessions" in head_tables
         assert counts == (1, 1)
     finally:
         _restore_head_and_delete_seed(user_id=user_id, invite_id=invite_id)
@@ -252,6 +253,7 @@ def test_mysql_migration_downgrade_roundtrip_preserves_prior_data() -> None:
         assert downgraded_revision == REVISION_0016
         assert "mm_model_usage_events" in downgraded_tables
         assert "mm_content_reports" not in downgraded_tables
+        assert "mm_auth_sessions" not in downgraded_tables
         assert downgraded_counts == (1, 1)
 
         _migrate("upgrade", "head")
@@ -260,6 +262,7 @@ def test_mysql_migration_downgrade_roundtrip_preserves_prior_data() -> None:
         assert restored_revision == EXPECTED_MARKET_MORNING_SCHEMA_REVISION
         assert "mm_model_usage_events" in restored_tables
         assert "mm_content_reports" in restored_tables
+        assert "mm_auth_sessions" in restored_tables
         assert restored_counts == (1, 1)
     finally:
         _restore_head_and_delete_seed(user_id=user_id, invite_id=invite_id)

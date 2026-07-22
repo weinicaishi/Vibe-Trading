@@ -79,7 +79,7 @@ MYSQL_MIGRATION_SCENARIOS = (
     RehearsalScenario(
         scenario_id="mysql_migration_fresh_head",
         name="MySQL 空库迁移到 head",
-        expected=("专用库从 base 升级到 head 后 revision 精确为 0017，且 mm_* 表集合与 ORM metadata 一致。"),
+        expected=("专用库从 base 升级到 head 后 revision 精确为 0018，且 mm_* 表集合与 ORM metadata 一致。"),
         pytest_node_ids=(
             "agent/tests/test_market_morning_mysql_migration_live.py::test_mysql_migration_fresh_database_reaches_exact_head",
         ),
@@ -87,15 +87,17 @@ MYSQL_MIGRATION_SCENARIOS = (
     RehearsalScenario(
         scenario_id="mysql_migration_0016_to_head",
         name="MySQL 0016 升级到 head",
-        expected=("0016 账户与私测邀请数据在升级 0017 后保持不变，并创建 content reports 表。"),
+        expected=("0016 账户与私测邀请数据在升级 0018 后保持不变，并创建 content reports 与 auth sessions 表。"),
         pytest_node_ids=(
             "agent/tests/test_market_morning_mysql_migration_live.py::test_mysql_migration_0016_data_survives_upgrade_to_head",
         ),
     ),
     RehearsalScenario(
         scenario_id="mysql_migration_downgrade_roundtrip",
-        name="MySQL 0017 downgrade roundtrip",
-        expected=("head 降到 0016 时只移除 content reports 表，既有数据保留；重新升级后恢复精确 head。"),
+        name="MySQL 0018 downgrade roundtrip",
+        expected=(
+            "head 降到 0016 时只移除 content reports 与 auth sessions 表，既有数据保留；重新升级后恢复精确 head。"
+        ),
         pytest_node_ids=(
             "agent/tests/test_market_morning_mysql_migration_live.py::test_mysql_migration_downgrade_roundtrip_preserves_prior_data",
         ),

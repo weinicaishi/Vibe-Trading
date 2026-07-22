@@ -21,30 +21,14 @@ REQUIRED_SOURCE_ARTIFACTS: Mapping[str, str] = {
     "container_image_definition": "Dockerfile",
     "frontend_dependency_lock": "frontend/package-lock.json",
     "market_morning_ci_workflow": ".github/workflows/test.yml",
-    "market_morning_migration_head": (
-        "agent/migrations/market_morning/versions/0017_market_morning_content_reports.py"
-    ),
-    "market_morning_mysql_bundle": (
-        "database/market-morning/mysql/market_morning_mysql_0017.zip"
-    ),
-    "market_morning_mysql_schema": (
-        "database/market-morning/mysql/market_morning_schema_0017.sql"
-    ),
-    "market_morning_monitoring_rules": (
-        "deploy/market-morning/monitoring/market-morning.rules.yml"
-    ),
-    "market_morning_monitoring_drill_template": (
-        "docs/evidence/market-morning/monitoring-drill.template.json"
-    ),
-    "market_morning_operations_runbook": (
-        "docs/market-morning-operations-runbook.md"
-    ),
-    "market_morning_production_runtime_factory": (
-        "agent/src/market_morning/production_runtime_factory.py"
-    ),
-    "market_morning_t1_signoff_template": (
-        "docs/evidence/market-morning/t1-external-signoffs.template.json"
-    ),
+    "market_morning_migration_head": ("agent/migrations/market_morning/versions/0018_market_morning_auth_sessions.py"),
+    "market_morning_mysql_bundle": ("database/market-morning/mysql/market_morning_mysql_0018.zip"),
+    "market_morning_mysql_schema": ("database/market-morning/mysql/market_morning_schema_0018.sql"),
+    "market_morning_monitoring_rules": ("deploy/market-morning/monitoring/market-morning.rules.yml"),
+    "market_morning_monitoring_drill_template": ("docs/evidence/market-morning/monitoring-drill.template.json"),
+    "market_morning_operations_runbook": ("docs/market-morning-operations-runbook.md"),
+    "market_morning_production_runtime_factory": ("agent/src/market_morning/production_runtime_factory.py"),
+    "market_morning_t1_signoff_template": ("docs/evidence/market-morning/t1-external-signoffs.template.json"),
     "python_project_contract": "pyproject.toml",
     "runtime_compose_definition": "docker-compose.yml",
 }
@@ -194,14 +178,11 @@ def parse_release_candidate_manifest(payload: Mapping[str, Any]) -> ReleaseCandi
         raise ReleaseCandidateError("release candidate generated_at is invalid")
 
     expected_revision = payload["expected_release_revision"]
-    if not isinstance(expected_revision, str) or not _RELEASE_PATTERN.fullmatch(
-        expected_revision
-    ):
+    if not isinstance(expected_revision, str) or not _RELEASE_PATTERN.fullmatch(expected_revision):
         raise ReleaseCandidateError("release candidate expected revision is invalid")
     release_revision = payload["release_revision"]
     if release_revision is not None and (
-        not isinstance(release_revision, str)
-        or not _RELEASE_PATTERN.fullmatch(release_revision)
+        not isinstance(release_revision, str) or not _RELEASE_PATTERN.fullmatch(release_revision)
     ):
         raise ReleaseCandidateError("release candidate revision is invalid")
     if payload["runtime_schema_revision"] != EXPECTED_MARKET_MORNING_SCHEMA_REVISION:
@@ -225,14 +206,10 @@ def parse_release_candidate_manifest(payload: Mapping[str, Any]) -> ReleaseCandi
     if status not in {"passed", "blocked"}:
         raise ReleaseCandidateError("release candidate status is invalid")
     blocking_codes = payload["blocking_codes"]
-    if not isinstance(blocking_codes, list) or len(blocking_codes) != len(
-        set(blocking_codes)
-    ):
+    if not isinstance(blocking_codes, list) or len(blocking_codes) != len(set(blocking_codes)):
         raise ReleaseCandidateError("release candidate blocking codes are invalid")
     expected_blocking_codes = [
-        _BLOCKING_CODE_BY_CHECK[name]
-        for name in sorted(RELEASE_CANDIDATE_CHECKS)
-        if checks[name] == "failed"
+        _BLOCKING_CODE_BY_CHECK[name] for name in sorted(RELEASE_CANDIDATE_CHECKS) if checks[name] == "failed"
     ]
     if blocking_codes != expected_blocking_codes:
         raise ReleaseCandidateError("release candidate blocking codes do not match checks")
@@ -253,9 +230,7 @@ def parse_release_candidate_manifest(payload: Mapping[str, Any]) -> ReleaseCandi
         allow_missing=status == "blocked",
     )
     manifest_sha256 = payload["manifest_sha256"]
-    if not isinstance(manifest_sha256, str) or not _SHA256_PATTERN.fullmatch(
-        manifest_sha256
-    ):
+    if not isinstance(manifest_sha256, str) or not _SHA256_PATTERN.fullmatch(manifest_sha256):
         raise ReleaseCandidateError("release candidate manifest hash is invalid")
     canonical = dict(payload)
     canonical.pop("manifest_sha256")
@@ -295,9 +270,7 @@ def collect_repository_snapshot(repository_root: Path) -> RepositorySnapshot:
     repository_readable = True
     worktree_clean = False
     tracked: set[str] = set()
-    artifact_hashes: dict[str, str | None] = {
-        name: None for name in REQUIRED_SOURCE_ARTIFACTS
-    }
+    artifact_hashes: dict[str, str | None] = {name: None for name in REQUIRED_SOURCE_ARTIFACTS}
 
     try:
         top_level = _run_git(root, "rev-parse", "--show-toplevel")
@@ -436,31 +409,20 @@ def evaluate_release_candidate(
         raise ReleaseCandidateError("generated_at must be timezone-aware")
 
     required_artifacts = frozenset(REQUIRED_SOURCE_ARTIFACTS)
-    source_hashes_complete = (
-        frozenset(repository.source_artifact_sha256) == required_artifacts
-        and all(
-            isinstance(value, str) and _SHA256_PATTERN.fullmatch(value)
-            for value in repository.source_artifact_sha256.values()
-        )
+    source_hashes_complete = frozenset(repository.source_artifact_sha256) == required_artifacts and all(
+        isinstance(value, str) and _SHA256_PATTERN.fullmatch(value)
+        for value in repository.source_artifact_sha256.values()
     )
     artifacts_tracked = repository.tracked_source_artifacts == required_artifacts
     required_evidence = frozenset(REQUIRED_VERIFICATION_EVIDENCE)
-    evidence_hashes_complete = (
-        frozenset(verification.evidence_sha256) == required_evidence
-        and all(
-            isinstance(value, str) and _SHA256_PATTERN.fullmatch(value)
-            for value in verification.evidence_sha256.values()
-        )
+    evidence_hashes_complete = frozenset(verification.evidence_sha256) == required_evidence and all(
+        isinstance(value, str) and _SHA256_PATTERN.fullmatch(value) for value in verification.evidence_sha256.values()
     )
     evidence_valid = verification.valid_evidence == required_evidence
     actual_revision_valid = bool(
-        repository.release_revision
-        and _RELEASE_PATTERN.fullmatch(repository.release_revision)
+        repository.release_revision and _RELEASE_PATTERN.fullmatch(repository.release_revision)
     )
-    revision_matches = bool(
-        actual_revision_valid
-        and repository.release_revision == expected_release_revision
-    )
+    revision_matches = bool(actual_revision_valid and repository.release_revision == expected_release_revision)
     schema_current = runtime_schema_revision == EXPECTED_MARKET_MORNING_SCHEMA_REVISION
 
     checks = {
@@ -474,11 +436,7 @@ def evaluate_release_candidate(
         "runtime_schema_current": schema_current,
         "source_hashes_complete": source_hashes_complete,
     }
-    blocking_codes = [
-        _BLOCKING_CODE_BY_CHECK[name]
-        for name in sorted(checks)
-        if not checks[name]
-    ]
+    blocking_codes = [_BLOCKING_CODE_BY_CHECK[name] for name in sorted(checks) if not checks[name]]
     payload: dict[str, Any] = {
         "schema_version": 1,
         "scope": "market_morning_release_candidate",

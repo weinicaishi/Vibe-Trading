@@ -17,18 +17,11 @@ from src.market_morning.production_schema_change_cli import (
 )
 
 
-PRODUCT_URL = (
-    "mysql+asyncmy://product:super-secret@db.example:3306/market_morning_prod"
-)
-ACCEPTANCE_URL = (
-    "mysql+asyncmy://acceptance:secret@db.example:3306/market_morning_acceptance_ci"
-)
-MIGRATION_URL = (
-    "mysql+asyncmy://migration:secret@db.example:3306/"
-    "market_morning_migration_acceptance_ci"
-)
+PRODUCT_URL = "mysql+asyncmy://product:super-secret@db.example:3306/market_morning_prod"
+ACCEPTANCE_URL = "mysql+asyncmy://acceptance:secret@db.example:3306/market_morning_acceptance_ci"
+MIGRATION_URL = "mysql+asyncmy://migration:secret@db.example:3306/market_morning_migration_acceptance_ci"
 SOURCE_REVISION = "0004_market_morning_sources_events"
-TARGET_REVISION = "0017_market_morning_content_reports"
+TARGET_REVISION = "0018_market_morning_auth_sessions"
 
 
 def _environment(**overrides: str) -> dict[str, str]:
@@ -251,9 +244,7 @@ def test_postflight_requires_exact_head_and_table_count(tmp_path: Path) -> None:
     assert exit_code == 1
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["failure_code"] == "postflight_schema_mismatch"
-    assert payload["after"]["market_morning_table_count"] == (
-        EXPECTED_HEAD_TABLE_COUNT - 1
-    )
+    assert payload["after"]["market_morning_table_count"] == (EXPECTED_HEAD_TABLE_COUNT - 1)
 
 
 def test_already_current_is_an_idempotent_noop(tmp_path: Path) -> None:
@@ -304,6 +295,5 @@ def test_already_current_revision_still_requires_complete_table_set(
 def test_pyproject_exposes_production_schema_change_entrypoint() -> None:
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
     assert (
-        'vibe-trading-market-morning-production-schema-change = '
-        '"src.market_morning.production_schema_change_cli:main"'
+        'vibe-trading-market-morning-production-schema-change = "src.market_morning.production_schema_change_cli:main"'
     ) in pyproject

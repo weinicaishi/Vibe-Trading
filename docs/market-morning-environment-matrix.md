@@ -55,6 +55,8 @@
 | `VIBE_MARKET_MORNING_OIDC_HTTP_TIMEOUT_SECONDS` | 否 | JWKS 请求超时 | `5` | `1–15` |
 | `VIBE_MARKET_MORNING_OIDC_CLOCK_SKEW_SECONDS` | 否 | JWT 时钟偏差 | `30` | `0–120` |
 | `VIBE_MARKET_MORNING_OIDC_SESSION_VALIDATOR_FACTORY` | 内置 OIDC 时是 | 逐请求撤权/session 校验 | fake 可选 | provider-backed fail-closed callback |
+| `VIBE_MARKET_MORNING_OIDC_SESSION_CLAIM` | 使用内置 session ledger 时是 | 稳定的 provider session claim 名称 | fake 可选 | Auth0 Action 写入的 namespaced claim |
+| `VIBE_MARKET_MORNING_OIDC_ACCESS_TOKEN_MAX_LIFETIME_SECONDS` | 否 | access token 最大有效期，60–1800 秒 | `900` | `900` |
 | `VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM` | 否 | 运营 roles claim 名 | `roles` | provider 固定 claim |
 | `VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON` | 内置运营 OIDC 时是 | role 到四项权限的显式映射 | fake role | 审核后的最小权限 JSON |
 | `VIBE_MARKET_MORNING_EMAIL_WEBHOOK_FACTORY` | 否 | 邮件回调 adapter factory | fake 可选 | provider factory |

@@ -2,7 +2,7 @@
   "environment_tier": "staging",
   "generated_at": "2026-07-21T00:00:00+09:00",
   "release_revision": "0000000000000000000000000000000000000000",
-  "runtime_schema_revision": "0017_market_morning_content_reports",
+  "runtime_schema_revision": "0018_market_morning_auth_sessions",
   "schema_version": 2,
   "scope": "market_morning_t1_external_signoffs",
   "signoffs": {

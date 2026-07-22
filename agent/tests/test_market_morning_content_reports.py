@@ -146,9 +146,7 @@ def _edition_record(*, event_id: str = EVENT_ID) -> MorningEditionRecord:
 def test_content_report_schema_is_private_bounded_and_idempotent() -> None:
     from src.market_morning.models import ContentReportRecord
 
-    ddl = str(
-        CreateTable(ContentReportRecord.__table__).compile(dialect=mysql.dialect())
-    )
+    ddl = str(CreateTable(ContentReportRecord.__table__).compile(dialect=mysql.dialect()))
 
     assert "uq_mm_content_report_user_edition_event" in ddl
     assert "ck_mm_content_report_reason" in ddl
@@ -164,16 +162,13 @@ def test_content_report_schema_is_private_bounded_and_idempotent() -> None:
 
 
 def test_content_report_migration_follows_model_usage() -> None:
-    migration = (
-        REPO_ROOT
-        / "agent/migrations/market_morning/versions/0017_market_morning_content_reports.py"
-    )
+    migration = REPO_ROOT / "agent/migrations/market_morning/versions/0017_market_morning_content_reports.py"
 
     assert migration.exists()
     text = migration.read_text(encoding="utf-8")
     assert 'down_revision: str | None = "0016_market_morning_model_usage"' in text
     assert '"alembic_version"' in text
-    assert 'type_=sa.String(64)' in text
+    assert "type_=sa.String(64)" in text
     assert text.index("op.alter_column") < text.index("op.create_table")
     assert '"mm_content_reports"' in text
     assert "free_text" not in text
@@ -182,34 +177,25 @@ def test_content_report_migration_follows_model_usage() -> None:
     assert "original_url" not in text
 
 
-def test_0017_mysql_delivery_sql_matches_current_metadata_and_revision() -> None:
+def test_0018_mysql_delivery_sql_matches_current_metadata_and_revision() -> None:
     from src.market_morning.db import EXPECTED_MARKET_MORNING_SCHEMA_REVISION
     from src.market_morning.models import Base
 
     directory = REPO_ROOT / "database/market-morning/mysql"
-    bootstrap = (directory / "market_morning_schema_0017.sql").read_text(
-        encoding="utf-8"
-    )
-    incremental = (
-        directory / "market_morning_upgrade_0016_to_0017.sql"
-    ).read_text(encoding="utf-8")
-    verifier = (directory / "market_morning_verify_0017.sql").read_text(
-        encoding="utf-8"
-    )
+    bootstrap = (directory / "market_morning_schema_0018.sql").read_text(encoding="utf-8")
+    incremental = (directory / "market_morning_upgrade_0017_to_0018.sql").read_text(encoding="utf-8")
+    verifier = (directory / "market_morning_verify_0018.sql").read_text(encoding="utf-8")
 
-    assert bootstrap.count("CREATE TABLE mm_") == len(Base.metadata.tables) == 33
+    assert bootstrap.count("CREATE TABLE mm_") == len(Base.metadata.tables) == 34
     assert "CREATE TABLE mm_content_reports" in bootstrap
     assert bootstrap.index("ALTER TABLE alembic_version") < bootstrap.index(
         "version_num='0004_market_morning_sources_events'"
     )
     assert bootstrap.index("ALTER TABLE alembic_version") < bootstrap.index(
-        "version_num='0017_market_morning_content_reports'"
+        "version_num='0018_market_morning_auth_sessions'"
     )
-    assert incremental.index("ALTER TABLE alembic_version") < incremental.index(
-        "CREATE TABLE mm_content_reports"
-    )
-    assert incremental.index("CREATE TABLE mm_content_reports") < incremental.index(
-        "version_num='0017_market_morning_content_reports'"
+    assert incremental.index("CREATE TABLE mm_auth_sessions") < incremental.index(
+        "version_num='0018_market_morning_auth_sessions'"
     )
     assert EXPECTED_MARKET_MORNING_SCHEMA_REVISION in bootstrap
     assert EXPECTED_MARKET_MORNING_SCHEMA_REVISION in verifier

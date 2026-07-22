@@ -22,6 +22,7 @@ from src.market_morning.models import (
     utc_now_naive,
 )
 from src.market_morning.repositories.jobs import MarketMorningJobType, enqueue_job
+from src.market_morning.session_ledger import revoke_all_sessions_for_subject
 from src.market_morning.telemetry import AnalyticsEventName, append_analytics_event
 
 MARKET_MORNING_TIMEZONE = "Asia/Tokyo"
@@ -106,9 +107,7 @@ def _consent_type(value: ConsentType | str) -> ConsentType:
 def _consent_version(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value).strip()
     if not normalized or len(normalized) > 64:
-        raise SettingsValidationError(
-            "consent_version must contain 1 to 64 characters"
-        )
+        raise SettingsValidationError("consent_version must contain 1 to 64 characters")
     if any(unicodedata.category(char).startswith("C") for char in normalized):
         raise SettingsValidationError("consent_version contains control characters")
     if _SAFE_CONSENT_VERSION.fullmatch(normalized) is None:
@@ -166,22 +165,24 @@ def _audit(
     )
 
 
-async def read_user_settings(
-    session: AsyncSession, *, user_id: str
-) -> UserSettingsView:
+async def read_user_settings(session: AsyncSession, *, user_id: str) -> UserSettingsView:
     canonical_user_id = _canonical_uuid(user_id, field="user_id")
     user = await _active_user(session, canonical_user_id, lock=False)
     rows = (
-        await session.execute(
-            select(UserConsent)
-            .where(
-                UserConsent.user_id == canonical_user_id,
-                UserConsent.consent_type.in_(tuple(item.value for item in ConsentType)),
-                UserConsent.revoked_at.is_(None),
+        (
+            await session.execute(
+                select(UserConsent)
+                .where(
+                    UserConsent.user_id == canonical_user_id,
+                    UserConsent.consent_type.in_(tuple(item.value for item in ConsentType)),
+                    UserConsent.revoked_at.is_(None),
+                )
+                .order_by(UserConsent.accepted_at.desc(), UserConsent.consent_id.desc())
             )
-            .order_by(UserConsent.accepted_at.desc(), UserConsent.consent_id.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     latest: dict[ConsentType, UserConsent] = {}
     for row in rows:
         consent_type = ConsentType(row.consent_type)
@@ -305,9 +306,7 @@ async def set_consent_acceptance(
     else:
         row.revoked_at = occurred_at
 
-    mutation_status = (
-        ConsentMutationStatus.ACCEPTED if accepted else ConsentMutationStatus.REVOKED
-    )
+    mutation_status = ConsentMutationStatus.ACCEPTED if accepted else ConsentMutationStatus.REVOKED
     session.add(
         _audit(
             user_id=canonical_user_id,
@@ -348,18 +347,16 @@ async def create_account_deletion_request(
     canonical_user_id = _canonical_uuid(user_id, field="user_id")
     occurred_at = now or utc_now_naive()
     user = (
-        await session.execute(
-            select(User)
-            .where(User.user_id == canonical_user_id)
-            .with_for_update()
-        )
+        await session.execute(select(User).where(User.user_id == canonical_user_id).with_for_update())
     ).scalar_one_or_none()
-    if (
-        user is None
-        or user.deleted_at is not None
-        or user.account_status not in {"active", "deletion_pending"}
-    ):
+    if user is None or user.deleted_at is not None or user.account_status not in {"active", "deletion_pending"}:
         raise SettingsUserUnavailable("active Market Morning user is required")
+    await revoke_all_sessions_for_subject(
+        session,
+        external_subject=user.external_subject,
+        reason="account_deletion_requested",
+        now=occurred_at,
+    )
     existing = (
         await session.execute(
             select(AccountDeletionRequest)
@@ -410,9 +407,7 @@ async def create_account_deletion_request(
         occurred_at=occurred_at,
     )
     job_time = (
-        occurred_at.replace(tzinfo=timezone.utc)
-        if occurred_at.tzinfo is None
-        else occurred_at.astimezone(timezone.utc)
+        occurred_at.replace(tzinfo=timezone.utc) if occurred_at.tzinfo is None else occurred_at.astimezone(timezone.utc)
     )
     await enqueue_job(
         session,

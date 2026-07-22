@@ -31,6 +31,9 @@ from src.market_morning.models import (
     new_id,
     utc_now_naive,
 )
+from src.market_morning.session_ledger import (
+    revoke_and_pseudonymize_sessions_for_subject,
+)
 
 
 class AccountPrivacyError(RuntimeError):
@@ -265,15 +268,11 @@ async def export_account_data(
     now: datetime | None = None,
 ) -> AccountDataExport:
     canonical_user_id = _uuid(user_id, field="user_id")
-    user = (
-        await session.execute(select(User).where(User.user_id == canonical_user_id))
-    ).scalar_one_or_none()
+    user = (await session.execute(select(User).where(User.user_id == canonical_user_id))).scalar_one_or_none()
     if user is None or user.deleted_at is not None or user.account_status != "active":
         raise AccountPrivacyUnavailable("active Market Morning user is required")
     data: dict[str, list[dict[str, object]]] = {}
-    for section, statement in build_account_export_statements(
-        user_id=canonical_user_id
-    ):
+    for section, statement in build_account_export_statements(user_id=canonical_user_id):
         rows = (await session.execute(statement)).mappings().all()
         data[section] = [dict(row) for row in rows]
     return AccountDataExport(
@@ -285,32 +284,17 @@ async def export_account_data(
 
 def _private_data_removal_statements(*, user_id: str):
     return (
-        update(MorningEditionRecord)
-        .where(MorningEditionRecord.user_id == user_id)
-        .values(supersedes_edition_id=None),
-        delete(EditionEventStateRecord).where(
-            EditionEventStateRecord.user_id == user_id
-        ),
-        delete(EditionSourceOpenRecord).where(
-            EditionSourceOpenRecord.user_id == user_id
-        ),
-        delete(IssuerResearchNoteRecord).where(
-            IssuerResearchNoteRecord.user_id == user_id
-        ),
+        update(MorningEditionRecord).where(MorningEditionRecord.user_id == user_id).values(supersedes_edition_id=None),
+        delete(EditionEventStateRecord).where(EditionEventStateRecord.user_id == user_id),
+        delete(EditionSourceOpenRecord).where(EditionSourceOpenRecord.user_id == user_id),
+        delete(IssuerResearchNoteRecord).where(IssuerResearchNoteRecord.user_id == user_id),
         delete(DeliveryAttemptRecord).where(DeliveryAttemptRecord.user_id == user_id),
         delete(MorningEditionRecord).where(MorningEditionRecord.user_id == user_id),
         delete(WatchlistItem).where(WatchlistItem.user_id == user_id),
         delete(UserConsent).where(UserConsent.user_id == user_id),
-        delete(JobRecord).where(
-            func.json_unquote(func.json_extract(JobRecord.payload, "$.user_id"))
-            == user_id
-        ),
-        update(AnalyticsEvent)
-        .where(AnalyticsEvent.user_id == user_id)
-        .values(user_id=None),
-        update(AuditLog)
-        .where(AuditLog.actor_user_id == user_id)
-        .values(actor_user_id=None),
+        delete(JobRecord).where(func.json_unquote(func.json_extract(JobRecord.payload, "$.user_id")) == user_id),
+        update(AnalyticsEvent).where(AnalyticsEvent.user_id == user_id).values(user_id=None),
+        update(AuditLog).where(AuditLog.actor_user_id == user_id).values(actor_user_id=None),
         update(PrivateBetaInvite)
         .where(PrivateBetaInvite.accepted_by_user_id == user_id)
         .values(accepted_by_user_id=None),
@@ -346,19 +330,25 @@ async def process_account_deletion(
     if request.status not in {"pending", "processing"}:
         raise AccountPrivacyUnavailable("account deletion request is unavailable")
     user = (
-        await session.execute(
-            select(User).where(User.user_id == request.user_id).with_for_update()
-        )
+        await session.execute(select(User).where(User.user_id == request.user_id).with_for_update())
     ).scalar_one_or_none()
     if user is None:
         raise AccountPrivacyUnavailable("account deletion user is unavailable")
+
+    session_pseudonym = hashlib.sha256(f"session:{user.user_id}:{request.request_id}".encode("utf-8")).hexdigest()
+    await revoke_and_pseudonymize_sessions_for_subject(
+        session,
+        external_subject=user.external_subject,
+        replacement_subject=f"deleted-session:{session_pseudonym}",
+        reason="account_deleted",
+        now=occurred_at,
+    )
 
     running_user_job = (
         await session.execute(
             select(JobRecord.job_id)
             .where(
-                func.json_unquote(func.json_extract(JobRecord.payload, "$.user_id"))
-                == user.user_id,
+                func.json_unquote(func.json_extract(JobRecord.payload, "$.user_id")) == user.user_id,
                 JobRecord.status == "running",
             )
             .limit(1)
@@ -374,9 +364,7 @@ async def process_account_deletion(
     for statement in _private_data_removal_statements(user_id=user.user_id):
         await session.execute(statement)
 
-    pseudonym = hashlib.sha256(
-        f"{user.user_id}:{request.request_id}".encode("utf-8")
-    ).hexdigest()
+    pseudonym = hashlib.sha256(f"{user.user_id}:{request.request_id}".encode("utf-8")).hexdigest()
     user.external_subject = f"deleted:{pseudonym}"
     user.timezone = "Asia/Tokyo"
     user.email_opt_in = False

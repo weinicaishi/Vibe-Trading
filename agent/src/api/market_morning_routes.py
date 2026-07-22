@@ -17,6 +17,7 @@ from src.api.market_morning_auth import (
     require_account_deletion_principal,
     require_market_morning_onboarding_principal,
     require_market_morning_principal,
+    revoke_current_product_session,
 )
 from src.api.market_morning_admin_auth import (
     VerifiedMarketMorningOperator,
@@ -825,6 +826,12 @@ def _raise_issuer_research_http_error(exc: Exception) -> Never:
 
 def register_market_morning_routes(app: FastAPI) -> None:
     """Register internal readiness without initializing the product database."""
+
+    @app.delete("/market-morning/auth/session", status_code=status.HTTP_204_NO_CONTENT)
+    async def market_morning_session_logout(
+        _revoked: None = Depends(revoke_current_product_session),
+    ) -> None:
+        return None
 
     @app.post(
         "/market-morning/private-beta/invitations/accept",

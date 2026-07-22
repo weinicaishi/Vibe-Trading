@@ -18,7 +18,7 @@ from src.config.accessor import get_env_config
 
 logger = logging.getLogger(__name__)
 
-EXPECTED_MARKET_MORNING_SCHEMA_REVISION = "0017_market_morning_content_reports"
+EXPECTED_MARKET_MORNING_SCHEMA_REVISION = "0018_market_morning_auth_sessions"
 
 
 class MarketMorningDatabaseNotConfigured(RuntimeError):
@@ -41,9 +41,7 @@ def _validated_database_url(raw_url: str) -> URL:
     except Exception as exc:  # SQLAlchemy raises several URL parse errors
         raise MarketMorningDatabaseNotConfigured("Market Morning database URL is invalid") from exc
     if url.drivername != "mysql+asyncmy":
-        raise MarketMorningDatabaseNotConfigured(
-            "Market Morning database URL must use the mysql+asyncmy driver"
-        )
+        raise MarketMorningDatabaseNotConfigured("Market Morning database URL must use the mysql+asyncmy driver")
     if not url.database:
         raise MarketMorningDatabaseNotConfigured("Market Morning database URL must name a database")
     return url
@@ -59,9 +57,7 @@ def get_engine() -> AsyncEngine:
 
     if _engine is not None:
         if _engine_url != rendered:
-            raise RuntimeError(
-                "Market Morning database URL changed after engine initialization; restart the process"
-            )
+            raise RuntimeError("Market Morning database URL changed after engine initialization; restart the process")
         return _engine
 
     engine = create_async_engine(
@@ -114,9 +110,7 @@ async def probe_database() -> tuple[bool, str]:
     try:
         engine = get_engine()
         async with engine.connect() as connection:
-            result = await connection.execute(
-                text("SELECT version_num FROM alembic_version")
-            )
+            result = await connection.execute(text("SELECT version_num FROM alembic_version"))
             revision = result.scalar_one_or_none()
     except MarketMorningDatabaseNotConfigured as exc:
         return False, str(exc)

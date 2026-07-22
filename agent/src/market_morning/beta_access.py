@@ -22,6 +22,7 @@ from src.market_morning.models import (
     new_id,
     utc_now_naive,
 )
+from src.market_morning.session_ledger import revoke_all_sessions_for_subject
 
 _MAX_INVITE_LIFETIME = timedelta(days=30)
 
@@ -174,20 +175,14 @@ async def accept_private_beta_invite(
     subject = _safe_reference(external_subject, field="external_subject")
     invite = (
         await session.execute(
-            select(PrivateBetaInvite)
-            .where(PrivateBetaInvite.token_sha256 == _token_hash(raw_token))
-            .with_for_update()
+            select(PrivateBetaInvite).where(PrivateBetaInvite.token_sha256 == _token_hash(raw_token)).with_for_update()
         )
     ).scalar_one_or_none()
     if invite is None:
         raise BetaAccessConflict("private beta invitation is unavailable")
     if invite.status == "accepted":
         accepted_user = (
-            await session.execute(
-                select(User)
-                .where(User.user_id == invite.accepted_by_user_id)
-                .with_for_update()
-            )
+            await session.execute(select(User).where(User.user_id == invite.accepted_by_user_id).with_for_update())
         ).scalar_one_or_none()
         if accepted_user is None or accepted_user.external_subject != subject:
             raise BetaAccessConflict("private beta invitation is unavailable")
@@ -205,9 +200,7 @@ async def accept_private_beta_invite(
         raise BetaAccessConflict("private beta invitation is unavailable")
 
     user = (
-        await session.execute(
-            select(User).where(User.external_subject == subject).with_for_update()
-        )
+        await session.execute(select(User).where(User.external_subject == subject).with_for_update())
     ).scalar_one_or_none()
     if user is None:
         user = User(
@@ -263,9 +256,7 @@ async def revoke_private_beta_invite(
     occurred_at = now or utc_now_naive()
     invite = (
         await session.execute(
-            select(PrivateBetaInvite)
-            .where(PrivateBetaInvite.invite_id == canonical_invite_id)
-            .with_for_update()
+            select(PrivateBetaInvite).where(PrivateBetaInvite.invite_id == canonical_invite_id).with_for_update()
         )
     ).scalar_one_or_none()
     if invite is None:
@@ -316,12 +307,18 @@ async def set_user_access(
     actor = _safe_reference(actor_reference, field="actor_reference")
     occurred_at = now or utc_now_naive()
     user = (
-        await session.execute(
-            select(User).where(User.user_id == canonical_user_id).with_for_update()
-        )
+        await session.execute(select(User).where(User.user_id == canonical_user_id).with_for_update())
     ).scalar_one_or_none()
     if user is None or user.deleted_at is not None or user.account_status == "deleted":
         raise BetaAccessConflict("private beta account is unavailable")
+
+    if action == "suspend":
+        await revoke_all_sessions_for_subject(
+            session,
+            external_subject=user.external_subject,
+            reason="account_suspended",
+            now=occurred_at,
+        )
 
     target = "suspended" if action == "suspend" else "active"
     if user.account_status == target:
@@ -361,11 +358,7 @@ async def set_user_access(
     )
     await session.flush()
     return UserAccessMutationResult(
-        status=(
-            UserAccessMutationStatus.SUSPENDED
-            if target == "suspended"
-            else UserAccessMutationStatus.REACTIVATED
-        ),
+        status=(UserAccessMutationStatus.SUSPENDED if target == "suspended" else UserAccessMutationStatus.REACTIVATED),
         user_id=user.user_id,
         account_status=user.account_status,
     )

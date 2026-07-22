@@ -59,6 +59,47 @@ class User(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
 
 
+class ApplicationSessionRecord(Base):
+    """Hash-only application session used for immediate OIDC revocation."""
+
+    __tablename__ = "mm_auth_sessions"
+    __table_args__ = (
+        UniqueConstraint(
+            "issuer_sha256",
+            "session_reference_sha256",
+            name="uq_mm_auth_session_issuer_reference",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'revoked')",
+            name="ck_mm_auth_session_status",
+        ),
+        CheckConstraint(
+            "(status = 'active' AND revoked_at IS NULL AND revocation_reason IS NULL) OR "
+            "(status = 'revoked' AND revoked_at IS NOT NULL "
+            "AND revocation_reason IS NOT NULL)",
+            name="ck_mm_auth_session_revocation_state",
+        ),
+        Index(
+            "ix_mm_auth_session_subject_status",
+            "external_subject",
+            "status",
+        ),
+        {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
+    )
+
+    auth_session_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    issuer_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    session_reference_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="active")
+    token_issued_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    token_expires_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
+    revocation_reason: Mapped[str | None] = mapped_column(String(64))
+
+
 class PrivateBetaInvite(Base):
     """One-time private-beta invitation; the bearer secret is never persisted."""
 
@@ -81,9 +122,7 @@ class PrivateBetaInvite(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     expires_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
     created_by_reference: Mapped[str] = mapped_column(String(255), nullable=False)
-    accepted_by_user_id: Mapped[str | None] = mapped_column(
-        ForeignKey("mm_users.user_id", ondelete="SET NULL")
-    )
+    accepted_by_user_id: Mapped[str | None] = mapped_column(ForeignKey("mm_users.user_id", ondelete="SET NULL"))
     accepted_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
     revoked_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
@@ -487,9 +526,7 @@ class EventBriefSourceLinkRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    brief_source_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
+    brief_source_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     brief_id: Mapped[str] = mapped_column(
         ForeignKey("mm_event_briefs.brief_id", ondelete="CASCADE"),
         nullable=False,
@@ -546,13 +583,9 @@ class ModelUsageEventRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    usage_event_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
+    usage_event_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     usage_key: Mapped[str] = mapped_column(String(191), nullable=False)
-    brief_id: Mapped[str] = mapped_column(
-        ForeignKey("mm_event_briefs.brief_id", ondelete="CASCADE"), nullable=False
-    )
+    brief_id: Mapped[str] = mapped_column(ForeignKey("mm_event_briefs.brief_id", ondelete="CASCADE"), nullable=False)
     attempt_number: Mapped[int] = mapped_column(Integer, nullable=False)
     provider: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -622,8 +655,7 @@ class ContentReportRecord(Base):
             name="uq_mm_content_report_user_edition_event",
         ),
         CheckConstraint(
-            "reason_code IN ('fact_inaccurate', 'source_mismatch', "
-            "'outdated_or_corrected', 'other_content_issue')",
+            "reason_code IN ('fact_inaccurate', 'source_mismatch', 'outdated_or_corrected', 'other_content_issue')",
             name="ck_mm_content_report_reason",
         ),
         CheckConstraint(
@@ -642,12 +674,8 @@ class ContentReportRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    report_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False
-    )
+    report_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False)
     edition_id: Mapped[str] = mapped_column(
         ForeignKey("mm_morning_editions.edition_id", ondelete="CASCADE"),
         nullable=False,
@@ -657,9 +685,7 @@ class ContentReportRecord(Base):
         nullable=False,
     )
     reason_code: Mapped[str] = mapped_column(String(32), nullable=False)
-    status: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="pending"
-    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
     resolution_code: Mapped[str | None] = mapped_column(String(64))
     reviewed_by: Mapped[str | None] = mapped_column(String(128))
     reviewed_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
@@ -691,12 +717,8 @@ class EditionEventStateRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    event_state_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False
-    )
+    event_state_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False)
     edition_id: Mapped[str] = mapped_column(
         ForeignKey("mm_morning_editions.edition_id", ondelete="CASCADE"),
         nullable=False,
@@ -731,12 +753,8 @@ class EditionSourceOpenRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    source_open_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False
-    )
+    source_open_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False)
     edition_id: Mapped[str] = mapped_column(
         ForeignKey("mm_morning_editions.edition_id", ondelete="CASCADE"),
         nullable=False,
@@ -768,15 +786,9 @@ class IssuerResearchNoteRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    note_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
-    user_id: Mapped[str] = mapped_column(
-        ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False
-    )
-    issuer_id: Mapped[str] = mapped_column(
-        ForeignKey("mm_issuers.issuer_id", ondelete="RESTRICT"), nullable=False
-    )
+    note_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("mm_users.user_id", ondelete="CASCADE"), nullable=False)
+    issuer_id: Mapped[str] = mapped_column(ForeignKey("mm_issuers.issuer_id", ondelete="RESTRICT"), nullable=False)
     note_text: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
@@ -1044,8 +1056,7 @@ class DeliveryAttemptRecord(Base):
             name="uq_mm_delivery_provider_message",
         ),
         CheckConstraint(
-            "status IN ('pending', 'sending', 'sent', 'delivered', "
-            "'failed', 'clicked', 'suppressed')",
+            "status IN ('pending', 'sending', 'sent', 'delivered', 'failed', 'clicked', 'suppressed')",
             name="ck_mm_delivery_status",
         ),
         Index(
@@ -1062,9 +1073,7 @@ class DeliveryAttemptRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    delivery_attempt_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
+    delivery_attempt_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     user_id: Mapped[str] = mapped_column(
         ForeignKey("mm_users.user_id", ondelete="CASCADE"),
         nullable=False,
@@ -1121,9 +1130,7 @@ class DeliveryProviderEventRecord(Base):
         {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
     )
 
-    provider_event_row_id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=new_id
-    )
+    provider_event_row_id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     delivery_attempt_id: Mapped[str | None] = mapped_column(
         ForeignKey("mm_delivery_attempts.delivery_attempt_id", ondelete="CASCADE")
     )
@@ -1141,6 +1148,7 @@ class DeliveryProviderEventRecord(Base):
 __all__ = [
     "AccountDeletionRequest",
     "AnalyticsEvent",
+    "ApplicationSessionRecord",
     "AuditLog",
     "Base",
     "ContentReportRecord",

@@ -39,15 +39,11 @@ def _release_candidate():
             release_revision=RELEASE,
             repository_readable=True,
             worktree_clean=True,
-            source_artifact_sha256={
-                name: SHA for name in REQUIRED_SOURCE_ARTIFACTS
-            },
+            source_artifact_sha256={name: SHA for name in REQUIRED_SOURCE_ARTIFACTS},
             tracked_source_artifacts=frozenset(REQUIRED_SOURCE_ARTIFACTS),
         ),
         verification=VerificationSnapshot(
-            evidence_sha256={
-                name: SHA for name in REQUIRED_VERIFICATION_EVIDENCE
-            },
+            evidence_sha256={name: SHA for name in REQUIRED_VERIFICATION_EVIDENCE},
             valid_evidence=frozenset(REQUIRED_VERIFICATION_EVIDENCE),
         ),
         generated_at=datetime(2026, 7, 22, 0, 0, tzinfo=timezone.utc),
@@ -69,10 +65,9 @@ def _artifact_payload(
         "environment_tier": "staging",
         "gate": gate,
         "run_id": run_id,
-        "release_candidate_sha256": candidate_sha256
-        or _release_candidate().manifest_sha256,
+        "release_candidate_sha256": candidate_sha256 or _release_candidate().manifest_sha256,
         "release_revision": RELEASE,
-        "runtime_schema_revision": "0017_market_morning_content_reports",
+        "runtime_schema_revision": "0018_market_morning_auth_sessions",
         "edition_date": "2026-07-22",
         "previous_jpx_open_date": "2026-07-21",
         "next_jpx_open_date": "2026-07-23",
@@ -80,17 +75,11 @@ def _artifact_payload(
         "provider_ids": provider_ids,
         "started_at": "2026-07-22T06:20:00+09:00",
         "finished_at": "2026-07-22T07:05:00+09:00",
-        "published_at": (
-            "2026-07-22T06:58:00+09:00"
-            if gate == "publication" and status == "passed"
-            else None
-        ),
+        "published_at": ("2026-07-22T06:58:00+09:00" if gate == "publication" and status == "passed" else None),
         "status": status,
         "contains_fixture_data": False,
         "contains_synthetic_data": False,
-        "model_invocation_count": (
-            3 if gate == "model_usage_cost" and status == "passed" else 0
-        ),
+        "model_invocation_count": (3 if gate == "model_usage_cost" and status == "passed" else 0),
         "failure_code": None if status == "passed" else "probe_failed",
         "evidence_sha256": "3" * 64,
     }
@@ -99,14 +88,9 @@ def _artifact_payload(
 def _artifacts(**overrides):
     from src.market_morning.staging_day_evidence import parse_staging_gate_artifact
 
-    payloads = {
-        gate: _artifact_payload(gate) for gate in REQUIRED_STAGING_GATES
-    }
+    payloads = {gate: _artifact_payload(gate) for gate in REQUIRED_STAGING_GATES}
     payloads.update(overrides)
-    return {
-        gate: parse_staging_gate_artifact(payload)
-        for gate, payload in payloads.items()
-    }
+    return {gate: parse_staging_gate_artifact(payload) for gate, payload in payloads.items()}
 
 
 def test_builder_emits_one_strict_passed_staging_day() -> None:
@@ -124,9 +108,7 @@ def test_builder_emits_one_strict_passed_staging_day() -> None:
     assert parsed.model_invocation_count == 3
     assert payload["provider_ids"] == sorted(PROVIDERS)
     assert set(payload["artifact_sha256"]) == REQUIRED_STAGING_GATES
-    assert len(set(payload["artifact_sha256"].values())) == len(
-        REQUIRED_STAGING_GATES
-    )
+    assert len(set(payload["artifact_sha256"].values())) == len(REQUIRED_STAGING_GATES)
 
 
 def test_builder_emits_auditable_failed_day_that_never_counts() -> None:
@@ -264,15 +246,18 @@ def test_staging_day_cli_writes_strict_manifest_without_input_paths(tmp_path: Pa
     candidate_path, gate_arguments = _write_cli_inputs(tmp_path)
     destination = tmp_path / "staging-day.json"
 
-    assert run_cli(
-        [
-            "--release-candidate",
-            str(candidate_path),
-            *gate_arguments,
-            "--output",
-            str(destination),
-        ]
-    ) == 0
+    assert (
+        run_cli(
+            [
+                "--release-candidate",
+                str(candidate_path),
+                *gate_arguments,
+                "--output",
+                str(destination),
+            ]
+        )
+        == 0
+    )
     raw = destination.read_text(encoding="utf-8")
     payload = json.loads(raw)
     assert parse_staging_day_evidence(payload).status == "passed"
@@ -401,11 +386,7 @@ def test_gate_artifact_cli_writes_failed_envelope_and_returns_one(tmp_path: Path
 def test_pyproject_exposes_staging_day_builder_entrypoint() -> None:
     project = Path("pyproject.toml").read_text(encoding="utf-8")
 
+    assert ('vibe-trading-market-morning-staging-day = "src.market_morning.staging_day_evidence_cli:main"') in project
     assert (
-        'vibe-trading-market-morning-staging-day = '
-        '"src.market_morning.staging_day_evidence_cli:main"'
-    ) in project
-    assert (
-        'vibe-trading-market-morning-staging-gate-artifact = '
-        '"src.market_morning.staging_gate_artifact_cli:main"'
+        'vibe-trading-market-morning-staging-gate-artifact = "src.market_morning.staging_gate_artifact_cli:main"'
     ) in project

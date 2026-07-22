@@ -34,8 +34,9 @@ RAW_TOKEN = "a" * 43
 
 
 class _Result:
-    def __init__(self, *, scalar=None):
+    def __init__(self, *, scalar=None, rowcount=0):
         self.scalar = scalar
+        self.rowcount = rowcount
 
     def scalar_one_or_none(self):
         return self.scalar
@@ -62,9 +63,7 @@ class _Session:
 def _mysql_ddl(table_name: str) -> str:
     from sqlalchemy.schema import CreateTable
 
-    return str(
-        CreateTable(Base.metadata.tables[table_name]).compile(dialect=mysql.dialect())
-    )
+    return str(CreateTable(Base.metadata.tables[table_name]).compile(dialect=mysql.dialect()))
 
 
 def _invite(*, status: str = "pending", expires_at: datetime | None = None):
@@ -102,9 +101,7 @@ def test_invite_schema_stores_hash_only_and_has_bounded_statuses() -> None:
     assert "pending" in ddl and "accepted" in ddl and "revoked" in ddl
     assert "expired" in ddl
 
-    migration = Path(
-        "agent/migrations/market_morning/versions/0015_market_morning_beta_privacy.py"
-    ).read_text()
+    migration = Path("agent/migrations/market_morning/versions/0015_market_morning_beta_privacy.py").read_text()
     assert 'down_revision: str | None = "0014_market_morning_issuer_research"' in migration
     assert '"mm_private_beta_invites"' in migration
 
@@ -194,7 +191,7 @@ def test_revoke_invite_and_suspend_user_are_idempotent_and_audited() -> None:
     assert invite.revoked_at == NOW
 
     user = _user()
-    suspend_session = _Session(_Result(scalar=user))
+    suspend_session = _Session(_Result(scalar=user), _Result(rowcount=2))
     suspended = asyncio.run(
         set_user_access(
             suspend_session,
@@ -210,7 +207,7 @@ def test_revoke_invite_and_suspend_user_are_idempotent_and_audited() -> None:
     assert user.email_opt_in is False
     assert user.last_product_activity_at is None
 
-    repeat_session = _Session(_Result(scalar=user))
+    repeat_session = _Session(_Result(scalar=user), _Result(rowcount=0))
     repeated = asyncio.run(
         set_user_access(
             repeat_session,
@@ -302,9 +299,7 @@ def test_admin_invite_and_user_access_routes_use_fixed_operator_identity(
         "/market-morning/_internal/private-beta/invites",
         json={"expires_in_days": 7},
     )
-    revoked = client.delete(
-        f"/market-morning/_internal/private-beta/invites/{INVITE_ID}"
-    )
+    revoked = client.delete(f"/market-morning/_internal/private-beta/invites/{INVITE_ID}")
     suspended = client.post(
         f"/market-morning/_internal/users/{USER_ID}/access",
         json={"action": "suspend", "reason_code": "beta_access_revoked"},
@@ -355,9 +350,7 @@ def test_invite_acceptance_route_uses_verified_oidc_subject_not_client_identity(
     monkeypatch.setattr(market_morning_routes, "accept_invite", accept)
     app = FastAPI()
     market_morning_routes.register_market_morning_routes(app)
-    app.dependency_overrides[
-        require_market_morning_onboarding_principal
-    ] = onboarding_principal
+    app.dependency_overrides[require_market_morning_onboarding_principal] = onboarding_principal
     client = TestClient(app, client=("127.0.0.1", 50000))
 
     response = client.post(
@@ -367,6 +360,4 @@ def test_invite_acceptance_route_uses_verified_oidc_subject_not_client_identity(
 
     assert response.status_code == 200
     assert response.json()["status"] == "accepted"
-    assert calls == [
-        {"raw_token": RAW_TOKEN, "external_subject": "oidc|verified"}
-    ]
+    assert calls == [{"raw_token": RAW_TOKEN, "external_subject": "oidc|verified"}]

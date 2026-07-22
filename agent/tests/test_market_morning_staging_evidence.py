@@ -40,7 +40,7 @@ def _day(
         "environment_tier": "staging",
         "run_id": f"staging-{edition_date}",
         "release_revision": release_revision,
-        "runtime_schema_revision": "0017_market_morning_content_reports",
+        "runtime_schema_revision": "0018_market_morning_auth_sessions",
         "edition_date": edition_date,
         "previous_jpx_open_date": previous_open,
         "next_jpx_open_date": next_open,

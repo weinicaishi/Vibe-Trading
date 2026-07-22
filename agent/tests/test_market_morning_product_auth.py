@@ -71,23 +71,20 @@ def _auth_client() -> TestClient:
         require_market_morning_onboarding_principal,
         require_market_morning_principal,
         require_recent_market_morning_principal,
+        revoke_current_product_session,
     )
 
     app = FastAPI()
 
     @app.get("/onboarding")
     async def onboarding(
-        principal: MarketMorningOnboardingPrincipal = Depends(
-            require_market_morning_onboarding_principal
-        ),
+        principal: MarketMorningOnboardingPrincipal = Depends(require_market_morning_onboarding_principal),
     ):
         return {"external_subject": principal.external_subject}
 
     @app.get("/product")
     async def product(
-        principal: MarketMorningPrincipal = Depends(
-            require_market_morning_principal
-        ),
+        principal: MarketMorningPrincipal = Depends(require_market_morning_principal),
     ):
         return {
             "user_id": principal.user_id,
@@ -96,11 +93,13 @@ def _auth_client() -> TestClient:
 
     @app.get("/recent")
     async def recent(
-        principal: MarketMorningPrincipal = Depends(
-            require_recent_market_morning_principal
-        ),
+        principal: MarketMorningPrincipal = Depends(require_recent_market_morning_principal),
     ):
         return {"user_id": principal.user_id}
+
+    @app.delete("/logout", status_code=204)
+    async def logout(_revoked: None = Depends(revoke_current_product_session)):
+        return None
 
     return TestClient(app, client=("127.0.0.1", 50000))
 
@@ -121,12 +120,8 @@ def test_product_auth_factory_contract_is_loaded_once(monkeypatch) -> None:
     from src.api import market_morning_auth
 
     assert hasattr(market_morning_auth, "MarketMorningProductAuthAdapter")
-    MarketMorningProductAuthAdapter = (
-        market_morning_auth.MarketMorningProductAuthAdapter
-    )
-    VerifiedMarketMorningIdentity = (
-        market_morning_auth.VerifiedMarketMorningIdentity
-    )
+    MarketMorningProductAuthAdapter = market_morning_auth.MarketMorningProductAuthAdapter
+    VerifiedMarketMorningIdentity = market_morning_auth.VerifiedMarketMorningIdentity
     load_product_auth_adapter = market_morning_auth.load_product_auth_adapter
 
     calls = []
@@ -195,6 +190,37 @@ def test_onboarding_uses_verified_subject_without_database_access(monkeypatch) -
     assert response.status_code == 200
     assert response.json() == {"external_subject": SUBJECT}
     assert calls == [TOKEN]
+
+
+def test_product_logout_revokes_the_exact_verified_bearer(monkeypatch) -> None:
+    from src.api.market_morning_auth import (
+        MarketMorningProductAuthAdapter,
+        VerifiedMarketMorningIdentity,
+    )
+
+    verified = []
+    revoked = []
+
+    async def verify(token: str) -> VerifiedMarketMorningIdentity:
+        verified.append(token)
+        return VerifiedMarketMorningIdentity(external_subject=SUBJECT)
+
+    async def revoke(token: str) -> None:
+        revoked.append(token)
+
+    _install_factory(
+        monkeypatch,
+        MarketMorningProductAuthAdapter(
+            provider="test-oidc",
+            verify_bearer=verify,
+            revoke_bearer=revoke,
+        ),
+    )
+    response = _auth_client().delete("/logout", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert response.status_code == 204
+    assert verified == [TOKEN]
+    assert revoked == [TOKEN]
+    assert TOKEN not in response.text
 
 
 def test_product_principal_maps_verified_subject_to_active_entitled_user(
@@ -304,9 +330,7 @@ def test_sensitive_action_requires_recent_provider_authentication(
         MarketMorningProductAuthAdapter(
             "test-oidc",
             verify,
-            session_factory=_SessionFactory(
-                {"user_id": USER_ID, "external_subject": SUBJECT}
-            ),
+            session_factory=_SessionFactory({"user_id": USER_ID, "external_subject": SUBJECT}),
         ),
     )
 
@@ -363,9 +387,7 @@ def test_rejected_token_and_provider_outage_have_distinct_sanitized_responses(
     )
 
     assert outage.status_code == 503
-    assert outage.json()["detail"] == (
-        "Market Morning product authentication is temporarily unavailable"
-    )
+    assert outage.json()["detail"] == ("Market Morning product authentication is temporarily unavailable")
     assert "provider-host" not in outage.text
     assert TOKEN not in outage.text
 
@@ -389,9 +411,7 @@ def test_account_deletion_principal_query_allows_only_active_or_pending() -> Non
         market_morning_auth,
         "build_account_deletion_principal_statement",
     )
-    statement = market_morning_auth.build_account_deletion_principal_statement(
-        external_subject=SUBJECT
-    )
+    statement = market_morning_auth.build_account_deletion_principal_statement(external_subject=SUBJECT)
     sql = str(
         statement.compile(
             dialect=mysql.dialect(),

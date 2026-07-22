@@ -48,6 +48,7 @@ from src.api.market_morning_admin_auth import (
     require_content_reviewer,
     require_operations_reader,
     require_publication_controller,
+    revoke_current_operator_session,
 )
 from src.market_morning.review_queues import (
     ReviewQueueConflict,
@@ -211,13 +212,8 @@ class IssuerAliasReviewRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_decision_reason_pair(self) -> "IssuerAliasReviewRequest":
-        valid = (
-            self.decision == "approve"
-            and self.reason_code == "verified_company_name"
-        ) or (
-            self.decision == "reject"
-            and self.reason_code
-            in {"ambiguous_alias", "wrong_issuer", "unsupported_source"}
+        valid = (self.decision == "approve" and self.reason_code == "verified_company_name") or (
+            self.decision == "reject" and self.reason_code in {"ambiguous_alias", "wrong_issuer", "unsupported_source"}
         )
         if not valid:
             raise ValueError("issuer alias decision and reason do not match")
@@ -270,12 +266,8 @@ class EventMergeReviewRequest(BaseModel):
 
     @model_validator(mode="after")
     def validate_decision_reason_pair(self) -> "EventMergeReviewRequest":
-        valid = (
-            self.decision == "approve"
-            and self.reason_code == "same_disclosure_event"
-        ) or (
-            self.decision == "reject"
-            and self.reason_code in {"distinct_events", "insufficient_evidence"}
+        valid = (self.decision == "approve" and self.reason_code == "same_disclosure_event") or (
+            self.decision == "reject" and self.reason_code in {"distinct_events", "insufficient_evidence"}
         )
         if not valid:
             raise ValueError("event merge decision and reason do not match")
@@ -482,6 +474,15 @@ def _raise_admin_http_error(exc: Exception) -> Never:
 def register_market_morning_admin_routes(app: FastAPI) -> None:
     """Register least-privilege operator routes without opening product auth."""
 
+    @app.delete(
+        "/market-morning/_internal/auth/session",
+        status_code=status.HTTP_204_NO_CONTENT,
+    )
+    async def market_morning_operator_session_logout(
+        _revoked: None = Depends(revoke_current_operator_session),
+    ) -> None:
+        return None
+
     @app.get(
         "/market-morning/_internal/operations/summary",
         response_model=OperationsSummaryResponse,
@@ -489,9 +490,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     async def market_morning_operations_summary(
         hours: int = Query(default=24, ge=1, le=168),
         recent_run_limit: int = Query(default=10, ge=1, le=30),
-        _operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        _operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ) -> OperationsSummaryResponse:
         _require_enabled()
         try:
@@ -509,9 +508,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     )
     async def market_morning_operations_metrics(
         hours: int = Query(default=24, ge=1, le=168),
-        _operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        _operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ) -> Response:
         _require_enabled()
         try:
@@ -524,11 +521,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
             _raise_admin_http_error(exc)
         return Response(
             content=content,
-            headers={
-                "Content-Type": (
-                    "application/openmetrics-text; version=1.0.0; charset=utf-8"
-                )
-            },
+            headers={"Content-Type": ("application/openmetrics-text; version=1.0.0; charset=utf-8")},
         )
 
     @app.get(
@@ -536,14 +529,9 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         response_model=EventBriefReviewQueueResponse,
     )
     async def market_morning_event_brief_review_queue(
-        review_status: Literal[
-            "pending", "auto_validated", "approved", "rejected"
-        ]
-        | None = Query(default=None),
+        review_status: Literal["pending", "auto_validated", "approved", "rejected"] | None = Query(default=None),
         limit: int = Query(default=50, ge=1, le=100),
-        _operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        _operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ) -> EventBriefReviewQueueResponse:
         _require_enabled()
         try:
@@ -554,10 +542,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         except Exception as exc:
             _raise_admin_http_error(exc)
         return EventBriefReviewQueueResponse(
-            items=[
-                EventBriefReviewQueueItemResponse.model_validate(item)
-                for item in items
-            ],
+            items=[EventBriefReviewQueueItemResponse.model_validate(item) for item in items],
             count=len(items),
         )
 
@@ -568,9 +553,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     async def market_morning_event_brief_review(
         payload: EventBriefReviewRequest,
         brief_id: str = Path(..., min_length=36, max_length=36),
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_content_reviewer
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_content_reviewer),
     ) -> EventBriefReviewMutationResponse:
         _require_enabled()
         try:
@@ -589,12 +572,9 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         response_model=IssuerAliasReviewQueueResponse,
     )
     async def market_morning_issuer_alias_review_queue(
-        review_status: Literal["pending", "approved", "rejected"]
-        | None = Query(default="pending"),
+        review_status: Literal["pending", "approved", "rejected"] | None = Query(default="pending"),
         limit: int = Query(default=50, ge=1, le=100),
-        _operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        _operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ) -> IssuerAliasReviewQueueResponse:
         _require_enabled()
         try:
@@ -605,10 +585,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         except Exception as exc:
             _raise_admin_http_error(exc)
         return IssuerAliasReviewQueueResponse(
-            items=[
-                IssuerAliasReviewQueueItemResponse.model_validate(item)
-                for item in items
-            ],
+            items=[IssuerAliasReviewQueueItemResponse.model_validate(item) for item in items],
             count=len(items),
         )
 
@@ -619,9 +596,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     async def market_morning_issuer_alias_review(
         payload: IssuerAliasReviewRequest,
         alias_id: str = Path(..., min_length=36, max_length=36),
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_content_reviewer
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_content_reviewer),
     ) -> IssuerAliasReviewMutationResponse:
         _require_enabled()
         try:
@@ -640,12 +615,9 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         response_model=EventMergeReviewQueueResponse,
     )
     async def market_morning_event_merge_review_queue(
-        review_status: Literal["pending", "approved", "rejected"]
-        | None = Query(default="pending"),
+        review_status: Literal["pending", "approved", "rejected"] | None = Query(default="pending"),
         limit: int = Query(default=50, ge=1, le=100),
-        _operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        _operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ) -> EventMergeReviewQueueResponse:
         _require_enabled()
         try:
@@ -656,10 +628,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         except Exception as exc:
             _raise_admin_http_error(exc)
         return EventMergeReviewQueueResponse(
-            items=[
-                EventMergeReviewQueueItemResponse.model_validate(item)
-                for item in items
-            ],
+            items=[EventMergeReviewQueueItemResponse.model_validate(item) for item in items],
             count=len(items),
         )
 
@@ -670,9 +639,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     async def market_morning_event_merge_review(
         payload: EventMergeReviewRequest,
         candidate_id: str = Path(..., min_length=36, max_length=36),
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_content_reviewer
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_content_reviewer),
     ) -> EventMergeReviewMutationResponse:
         _require_enabled()
         try:
@@ -691,12 +658,9 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
         response_model=ContentReportQueueResponse,
     )
     async def market_morning_content_report_queue(
-        report_status: Literal["pending", "resolved", "dismissed"]
-        | None = Query(default=None),
+        report_status: Literal["pending", "resolved", "dismissed"] | None = Query(default=None),
         limit: int = Query(default=50, ge=1, le=100),
-        _operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        _operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ) -> ContentReportQueueResponse:
         _require_enabled()
         try:
@@ -718,9 +682,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     async def market_morning_content_report_review(
         payload: ContentReportReviewRequest,
         report_id: str = Path(..., min_length=36, max_length=36),
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_content_reviewer
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_content_reviewer),
     ) -> ContentReportReviewMutationResponse:
         _require_enabled()
         try:
@@ -740,9 +702,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     )
     async def market_morning_publication_halt_create(
         payload: PublicationHaltRequest,
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_publication_controller
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_publication_controller),
     ) -> PublicationHaltMutationResponse:
         _require_enabled()
         try:
@@ -755,11 +715,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
             _raise_admin_http_error(exc)
         return PublicationHaltMutationResponse(
             status=result.status.value,
-            override=(
-                PublicationHaltResponse.model_validate(result.override)
-                if result.override
-                else None
-            ),
+            override=(PublicationHaltResponse.model_validate(result.override) if result.override else None),
         )
 
     @app.delete(
@@ -768,9 +724,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
     )
     async def market_morning_publication_halt_revoke(
         edition_date: date,
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_publication_controller
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_publication_controller),
     ) -> PublicationHaltMutationResponse:
         _require_enabled()
         try:
@@ -782,11 +736,7 @@ def register_market_morning_admin_routes(app: FastAPI) -> None:
             _raise_admin_http_error(exc)
         return PublicationHaltMutationResponse(
             status=result.status.value,
-            override=(
-                PublicationHaltResponse.model_validate(result.override)
-                if result.override
-                else None
-            ),
+            override=(PublicationHaltResponse.model_validate(result.override) if result.override else None),
         )
 
     @app.post(

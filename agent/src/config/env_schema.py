@@ -342,6 +342,17 @@ class MarketMorningConfig(_EnvBase):
         default="",
         max_length=512,
     )
+    oidc_session_claim: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_SESSION_CLAIM",
+        default="",
+        max_length=128,
+    )
+    oidc_access_token_max_lifetime_seconds: int = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_ACCESS_TOKEN_MAX_LIFETIME_SECONDS",
+        default=900,
+        ge=60,
+        le=1800,
+    )
     oidc_admin_roles_claim: str = Field(
         alias="VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM",
         default="roles",

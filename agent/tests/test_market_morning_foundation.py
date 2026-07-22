@@ -97,6 +97,7 @@ def test_foundation_metadata_contains_only_prefixed_tables() -> None:
         "mm_event_brief_sources",
         "mm_model_usage_events",
         "mm_content_reports",
+        "mm_auth_sessions",
         "mm_delivery_attempts",
         "mm_delivery_provider_events",
         "mm_edition_event_states",
@@ -271,7 +272,7 @@ def test_stale_database_schema_is_reported_as_misconfigured(
 @pytest.mark.parametrize(
     ("revision", "expected_ready", "expected_reason"),
     (
-        ("0017_market_morning_content_reports", True, "ready"),
+        ("0018_market_morning_auth_sessions", True, "ready"),
         (
             "0016_market_morning_model_usage",
             False,

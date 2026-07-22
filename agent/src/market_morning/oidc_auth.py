@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import importlib
 import inspect
 import ipaddress
@@ -33,13 +32,13 @@ from src.api.market_morning_auth import (
     VerifiedMarketMorningIdentity,
 )
 from src.config.accessor import get_env_config
+from src.market_morning.session_ledger import (
+    BUILTIN_SESSION_VALIDATOR_FACTORY,
+    pseudonymous_oidc_subject_reference,
+)
 
-BUILTIN_PRODUCT_AUTH_FACTORY = (
-    "src.market_morning.oidc_auth:build_product_auth_adapter"
-)
-BUILTIN_ADMIN_AUTH_FACTORY = (
-    "src.market_morning.oidc_auth:build_admin_auth_adapter"
-)
+BUILTIN_PRODUCT_AUTH_FACTORY = "src.market_morning.oidc_auth:build_product_auth_adapter"
+BUILTIN_ADMIN_AUTH_FACTORY = "src.market_morning.oidc_auth:build_admin_auth_adapter"
 
 _ASYMMETRIC_ALGORITHMS = frozenset(
     {
@@ -104,9 +103,7 @@ JwksFetcher = Callable[[], Awaitable[Mapping[str, Any]]]
 
 def _freeze_claim(value: Any) -> Any:
     if isinstance(value, Mapping):
-        return MappingProxyType(
-            {str(key): _freeze_claim(item) for key, item in value.items()}
-        )
+        return MappingProxyType({str(key): _freeze_claim(item) for key, item in value.items()})
     if isinstance(value, list):
         return tuple(_freeze_claim(item) for item in value)
     return value
@@ -151,12 +148,7 @@ def _canonical_text(
     maximum: int,
 ) -> str:
     canonical = value.strip()
-    if (
-        not canonical
-        or len(canonical) > maximum
-        or canonical != value
-        or _has_control(canonical)
-    ):
+    if not canonical or len(canonical) > maximum or canonical != value or _has_control(canonical):
         raise OidcConfigurationError(error_code)
     return canonical
 
@@ -171,6 +163,7 @@ class OidcSettings:
     jwks_ttl_seconds: int = 300
     http_timeout_seconds: float = 5.0
     clock_skew_seconds: int = 30
+    access_token_max_lifetime_seconds: int = 900
     admin_roles_claim: str = "roles"
 
     def __post_init__(self) -> None:
@@ -202,6 +195,8 @@ class OidcSettings:
             raise OidcConfigurationError("oidc_http_timeout_invalid")
         if not 0 <= self.clock_skew_seconds <= 120:
             raise OidcConfigurationError("oidc_clock_skew_invalid")
+        if not 60 <= self.access_token_max_lifetime_seconds <= 1800:
+            raise OidcConfigurationError("oidc_access_token_lifetime_invalid")
         if not _CLAIM_NAME_RE.fullmatch(self.admin_roles_claim):
             raise OidcConfigurationError("oidc_admin_roles_claim_invalid")
 
@@ -217,6 +212,7 @@ class OidcSettings:
             jwks_ttl_seconds=cfg.oidc_jwks_ttl_seconds,
             http_timeout_seconds=cfg.oidc_http_timeout_seconds,
             clock_skew_seconds=cfg.oidc_clock_skew_seconds,
+            access_token_max_lifetime_seconds=(cfg.oidc_access_token_max_lifetime_seconds),
             admin_roles_claim=cfg.oidc_admin_roles_claim,
         )
 
@@ -240,13 +236,9 @@ def load_session_validator(factory_path: str) -> SessionValidator:
         factory = getattr(importlib.import_module(module_name), attribute_name)
         validator = factory()
     except Exception as error:
-        raise OidcConfigurationError(
-            "oidc_session_validator_factory_failed"
-        ) from error
+        raise OidcConfigurationError("oidc_session_validator_factory_failed") from error
     if not callable(validator):
-        raise OidcConfigurationError(
-            "oidc_session_validator_factory_contract_invalid"
-        )
+        raise OidcConfigurationError("oidc_session_validator_factory_contract_invalid")
     return validator
 
 
@@ -254,9 +246,7 @@ def parse_admin_role_permissions(raw_json: str) -> dict[str, frozenset[OperatorP
     try:
         payload = json.loads(raw_json)
     except (TypeError, json.JSONDecodeError) as error:
-        raise OidcConfigurationError(
-            "oidc_admin_role_permissions_invalid"
-        ) from error
+        raise OidcConfigurationError("oidc_admin_role_permissions_invalid") from error
     if not isinstance(payload, dict) or not payload or len(payload) > 128:
         raise OidcConfigurationError("oidc_admin_role_permissions_invalid")
     result: dict[str, frozenset[OperatorPermission]] = {}
@@ -271,14 +261,10 @@ def parse_admin_role_permissions(raw_json: str) -> dict[str, frozenset[OperatorP
             or not permissions
             or any(not isinstance(item, str) for item in permissions)
         ):
-            raise OidcConfigurationError(
-                "oidc_admin_role_permissions_invalid"
-            )
+            raise OidcConfigurationError("oidc_admin_role_permissions_invalid")
         canonical_permissions = frozenset(permissions)
         if not canonical_permissions <= _OPERATOR_PERMISSIONS:
-            raise OidcConfigurationError(
-                "oidc_admin_role_permissions_invalid"
-            )
+            raise OidcConfigurationError("oidc_admin_role_permissions_invalid")
         result[role] = canonical_permissions  # type: ignore[assignment]
     return result
 
@@ -294,9 +280,7 @@ class OidcTokenVerifier:
         jwks_fetcher: JwksFetcher | None = None,
     ) -> None:
         if not callable(session_validator):
-            raise OidcConfigurationError(
-                "oidc_session_validator_factory_contract_invalid"
-            )
+            raise OidcConfigurationError("oidc_session_validator_factory_contract_invalid")
         self.settings = settings
         self._session_validator = session_validator
         self._jwks_fetcher = jwks_fetcher or self._fetch_remote_jwks
@@ -334,16 +318,10 @@ class OidcTokenVerifier:
 
     def _parse_jwks(self, payload: Mapping[str, Any]) -> dict[str, jwt.PyJWK]:
         raw_keys = payload.get("keys")
-        if (
-            not isinstance(raw_keys, list)
-            or not raw_keys
-            or len(raw_keys) > _MAX_JWKS_KEYS
-        ):
+        if not isinstance(raw_keys, list) or not raw_keys or len(raw_keys) > _MAX_JWKS_KEYS:
             raise OidcProviderUnavailable("oidc_jwks_contract_invalid")
         parsed: dict[str, jwt.PyJWK] = {}
-        expected_key_type = (
-            "RSA" if self.settings.algorithm.startswith(("RS", "PS")) else "EC"
-        )
+        expected_key_type = "RSA" if self.settings.algorithm.startswith(("RS", "PS")) else "EC"
         for raw_key in raw_keys:
             if not isinstance(raw_key, dict):
                 raise OidcProviderUnavailable("oidc_jwks_contract_invalid")
@@ -370,9 +348,7 @@ class OidcTokenVerifier:
                     algorithm=self.settings.algorithm,
                 )
             except Exception as error:
-                raise OidcProviderUnavailable(
-                    "oidc_jwks_contract_invalid"
-                ) from error
+                raise OidcProviderUnavailable("oidc_jwks_contract_invalid") from error
         if not parsed:
             raise OidcProviderUnavailable("oidc_jwks_contract_invalid")
         return parsed
@@ -399,9 +375,7 @@ class OidcTokenVerifier:
             # A new kid is the normal key-rotation signal. Refresh exactly
             # once when the current cache is still fresh. The global cooldown
             # prevents arbitrary kid values from amplifying JWKS traffic.
-            self._next_unknown_kid_refresh_at = (
-                now + _UNKNOWN_KID_REFRESH_COOLDOWN_SECONDS
-            )
+            self._next_unknown_kid_refresh_at = now + _UNKNOWN_KID_REFRESH_COOLDOWN_SECONDS
             await self._refresh_keys()
             key = self._keys.get(key_id)
             if key is None:
@@ -409,12 +383,7 @@ class OidcTokenVerifier:
             return key
 
     async def verify_claims(self, token: str) -> Mapping[str, Any]:
-        if (
-            not isinstance(token, str)
-            or not token
-            or len(token) > _MAX_TOKEN_LENGTH
-            or _has_control(token)
-        ):
+        if not isinstance(token, str) or not token or len(token) > _MAX_TOKEN_LENGTH or _has_control(token):
             raise OidcTokenRejected("oidc_token_invalid")
         try:
             header = jwt.get_unverified_header(token)
@@ -474,6 +443,11 @@ class OidcTokenVerifier:
             or not isinstance(auth_time, (int, float))
         ):
             raise OidcTokenRejected("oidc_claims_invalid")
+        if (
+            float(expires_at) <= float(issued_at)
+            or float(expires_at) - float(issued_at) > self.settings.access_token_max_lifetime_seconds
+        ):
+            raise OidcTokenRejected("oidc_access_token_lifetime_invalid")
         try:
             authenticated_at = datetime.fromtimestamp(
                 auth_time,
@@ -481,9 +455,7 @@ class OidcTokenVerifier:
             )
         except (OverflowError, OSError, ValueError) as error:
             raise OidcTokenRejected("oidc_claims_invalid") from error
-        if authenticated_at > datetime.now(timezone.utc) + timedelta(
-            seconds=self.settings.clock_skew_seconds
-        ):
+        if authenticated_at > datetime.now(timezone.utc) + timedelta(seconds=self.settings.clock_skew_seconds):
             raise OidcTokenRejected("oidc_claims_invalid")
         try:
             immutable_claims = _freeze_claim(claims)
@@ -493,17 +465,10 @@ class OidcTokenVerifier:
         except OidcTokenRejected:
             raise
         except Exception as error:
-            raise OidcProviderUnavailable(
-                "oidc_session_validation_unavailable"
-            ) from error
+            raise OidcProviderUnavailable("oidc_session_validation_unavailable") from error
         if session_result is not True:
             raise OidcTokenRejected("oidc_session_inactive")
         return immutable_claims
-
-
-def _pseudonymous_reference(issuer: str, subject: str) -> str:
-    digest = hashlib.sha256(f"{issuer}\0{subject}".encode("utf-8")).hexdigest()
-    return f"oidc:{digest}"
 
 
 def _authenticated_at(claims: Mapping[str, Any]) -> datetime:
@@ -532,16 +497,31 @@ def build_product_auth_adapter(
         except OidcTokenRejected as error:
             raise MarketMorningAuthenticationRejected(error.error_code) from error
         return VerifiedMarketMorningIdentity(
-            external_subject=_pseudonymous_reference(
+            external_subject=pseudonymous_oidc_subject_reference(
                 resolved_settings.issuer,
                 str(claims["sub"]),
             ),
             authenticated_at=_authenticated_at(claims),
         )
 
+    async def _revoke(token: str) -> None:
+        revoke_claims = getattr(validator, "revoke_claims", None)
+        if not callable(revoke_claims):
+            raise OidcProviderUnavailable("oidc_session_revocation_unavailable")
+        try:
+            claims = await verifier.verify_claims(token)
+            result = revoke_claims(claims, reason="logout")
+            if inspect.isawaitable(result):
+                result = await result
+        except OidcTokenRejected as error:
+            raise MarketMorningAuthenticationRejected(error.error_code) from error
+        if result is not True:
+            raise MarketMorningAuthenticationRejected("oidc_session_inactive")
+
     return MarketMorningProductAuthAdapter(
         provider=resolved_settings.provider,
         verify_bearer=_verify,
+        revoke_bearer=_revoke,
     )
 
 
@@ -549,11 +529,7 @@ def _roles(claims: Mapping[str, Any], claim_name: str) -> frozenset[str]:
     raw = claims.get(claim_name)
     values = (raw,) if isinstance(raw, str) else raw
     if not isinstance(values, (list, tuple)) or any(
-        not isinstance(value, str)
-        or not value
-        or len(value) > 128
-        or value != value.strip()
-        or _has_control(value)
+        not isinstance(value, str) or not value or len(value) > 128 or value != value.strip() or _has_control(value)
         for value in values
     ):
         raise OidcTokenRejected("oidc_admin_roles_invalid")
@@ -574,9 +550,7 @@ def build_admin_auth_adapter(
     mapping = (
         dict(role_permissions)
         if role_permissions is not None
-        else parse_admin_role_permissions(
-            get_env_config().market_morning.oidc_admin_role_permissions_json
-        )
+        else parse_admin_role_permissions(get_env_config().market_morning.oidc_admin_role_permissions_json)
     )
     if not mapping:
         raise OidcConfigurationError("oidc_admin_role_permissions_invalid")
@@ -591,9 +565,7 @@ def build_admin_auth_adapter(
             or not permissions
             or not permissions <= _OPERATOR_PERMISSIONS
         ):
-            raise OidcConfigurationError(
-                "oidc_admin_role_permissions_invalid"
-            )
+            raise OidcConfigurationError("oidc_admin_role_permissions_invalid")
     verifier = OidcTokenVerifier(
         settings=resolved_settings,
         session_validator=validator,
@@ -609,20 +581,33 @@ def build_admin_auth_adapter(
             if not permissions:
                 raise OidcTokenRejected("oidc_admin_role_unauthorized")
         except OidcTokenRejected as error:
-            raise MarketMorningAdminAuthenticationRejected(
-                error.error_code
-            ) from error
+            raise MarketMorningAdminAuthenticationRejected(error.error_code) from error
         return VerifiedMarketMorningOperator(
-            actor_reference=_pseudonymous_reference(
+            actor_reference=pseudonymous_oidc_subject_reference(
                 resolved_settings.issuer,
                 str(claims["sub"]),
             ),
             permissions=frozenset(permissions),
         )
 
+    async def _revoke(token: str) -> None:
+        revoke_claims = getattr(validator, "revoke_claims", None)
+        if not callable(revoke_claims):
+            raise OidcProviderUnavailable("oidc_session_revocation_unavailable")
+        try:
+            claims = await verifier.verify_claims(token)
+            result = revoke_claims(claims, reason="operator_logout")
+            if inspect.isawaitable(result):
+                result = await result
+        except OidcTokenRejected as error:
+            raise MarketMorningAdminAuthenticationRejected(error.error_code) from error
+        if result is not True:
+            raise MarketMorningAdminAuthenticationRejected("oidc_session_inactive")
+
     return MarketMorningAdminAuthAdapter(
         provider=resolved_settings.provider,
         verify_bearer=_verify,
+        revoke_bearer=_revoke,
     )
 
 
@@ -642,6 +627,11 @@ def builtin_oidc_preflight_checks(config: Any) -> tuple[str, ...]:
         checks.append("oidc_audience_missing")
     if not config.oidc_session_validator_factory.strip():
         checks.append("oidc_session_validator_factory_missing")
+    if (
+        config.oidc_session_validator_factory.strip() == BUILTIN_SESSION_VALIDATOR_FACTORY
+        and not config.oidc_session_claim.strip()
+    ):
+        checks.append("oidc_session_claim_missing")
     if admin_builtin and not config.oidc_admin_role_permissions_json.strip():
         checks.append("oidc_admin_role_permissions_missing")
     if not checks:
@@ -655,6 +645,7 @@ def builtin_oidc_preflight_checks(config: Any) -> tuple[str, ...]:
                 jwks_ttl_seconds=config.oidc_jwks_ttl_seconds,
                 http_timeout_seconds=config.oidc_http_timeout_seconds,
                 clock_skew_seconds=config.oidc_clock_skew_seconds,
+                access_token_max_lifetime_seconds=(config.oidc_access_token_max_lifetime_seconds),
                 admin_roles_claim=config.oidc_admin_roles_claim,
             )
         except OidcConfigurationError:
@@ -668,9 +659,7 @@ def builtin_oidc_preflight_checks(config: Any) -> tuple[str, ...]:
             checks.append("oidc_session_validator_factory_invalid")
         if admin_builtin:
             try:
-                parse_admin_role_permissions(
-                    config.oidc_admin_role_permissions_json
-                )
+                parse_admin_role_permissions(config.oidc_admin_role_permissions_json)
             except OidcConfigurationError:
                 checks.append("oidc_admin_role_permissions_invalid")
     return tuple(sorted(checks))

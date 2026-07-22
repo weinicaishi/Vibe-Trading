@@ -36,6 +36,7 @@ def _client() -> TestClient:
         require_content_reviewer,
         require_operations_reader,
         require_publication_controller,
+        revoke_current_operator_session,
     )
 
     app = FastAPI()
@@ -48,35 +49,31 @@ def _client() -> TestClient:
 
     @app.get("/read")
     async def read(
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_operations_reader
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_operations_reader),
     ):
         return payload(operator)
 
     @app.post("/review")
     async def review(
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_content_reviewer
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_content_reviewer),
     ):
         return payload(operator)
 
     @app.post("/publication")
     async def publication(
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_publication_controller
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_publication_controller),
     ):
         return payload(operator)
 
     @app.post("/access")
     async def access(
-        operator: VerifiedMarketMorningOperator = Depends(
-            require_access_manager
-        ),
+        operator: VerifiedMarketMorningOperator = Depends(require_access_manager),
     ):
         return payload(operator)
+
+    @app.delete("/logout", status_code=204)
+    async def logout(_revoked: None = Depends(revoke_current_operator_session)):
+        return None
 
     return TestClient(app, client=("127.0.0.1", 50000))
 
@@ -113,12 +110,7 @@ def test_admin_auth_factory_loads_a_bounded_operator_contract(monkeypatch) -> No
         SimpleNamespace(build=lambda: calls.append("load") or adapter),
     )
 
-    assert (
-        admin_auth.load_admin_auth_adapter(
-            "test_market_morning_admin_deployment:build"
-        )
-        is adapter
-    )
+    assert admin_auth.load_admin_auth_adapter("test_market_morning_admin_deployment:build") is adapter
     assert calls == ["load"]
 
 
@@ -161,13 +153,42 @@ def test_configured_operator_requires_bearer_and_enforces_exact_permission(
     assert TOKEN not in forbidden.text
 
 
+def test_operator_logout_revokes_the_exact_verified_bearer(monkeypatch) -> None:
+    from src.api import market_morning_admin_auth as admin_auth
+
+    verified = []
+    revoked = []
+
+    async def verify(token: str):
+        verified.append(token)
+        return admin_auth.VerifiedMarketMorningOperator(
+            actor_reference="oidc|operator-17",
+            permissions=frozenset({"operations.read"}),
+        )
+
+    async def revoke(token: str) -> None:
+        revoked.append(token)
+
+    _install_factory(
+        monkeypatch,
+        admin_auth.MarketMorningAdminAuthAdapter(
+            provider="test-oidc",
+            verify_bearer=verify,
+            revoke_bearer=revoke,
+        ),
+    )
+    response = _client().delete("/logout", headers={"Authorization": f"Bearer {TOKEN}"})
+    assert response.status_code == 204
+    assert verified == [TOKEN]
+    assert revoked == [TOKEN]
+    assert TOKEN not in response.text
+
+
 def test_operator_rejection_and_provider_outage_are_sanitized(monkeypatch) -> None:
     from src.api import market_morning_admin_auth as admin_auth
 
     async def reject(_token: str):
-        raise admin_auth.MarketMorningAdminAuthenticationRejected(
-            "jwt_signature_invalid"
-        )
+        raise admin_auth.MarketMorningAdminAuthenticationRejected("jwt_signature_invalid")
 
     _install_factory(
         monkeypatch,
@@ -194,9 +215,7 @@ def test_operator_rejection_and_provider_outage_are_sanitized(monkeypatch) -> No
         headers={"Authorization": f"Bearer {TOKEN}"},
     )
     assert outage.status_code == 503
-    assert outage.json()["detail"] == (
-        "Market Morning operator authentication is temporarily unavailable"
-    )
+    assert outage.json()["detail"] == ("Market Morning operator authentication is temporarily unavailable")
     assert "provider-host" not in outage.text
     assert TOKEN not in outage.text
 
@@ -263,6 +282,7 @@ def test_admin_routes_use_personal_actor_and_enforce_route_permissions(
         monkeypatch,
         admin_auth.MarketMorningAdminAuthAdapter("test-oidc", verify),
     )
+
     async def _legacy_allow() -> None:
         return None
 
@@ -348,6 +368,7 @@ def test_deployment_preflight_requires_operations_read_permission(
         monkeypatch,
         admin_auth.MarketMorningAdminAuthAdapter("test-oidc", verify),
     )
+
     async def _legacy_allow() -> None:
         return None
 

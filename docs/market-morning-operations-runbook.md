@@ -287,7 +287,7 @@ URL，也不能复用会执行 `downgrade base` 的 migration rehearsal。执行
    `VIBE_MARKET_MORNING_RUNTIME_ENABLED=false`；
 4. 在批准的维护窗口运行 `vibe-trading-market-morning-production-schema-change`，传入精确旧 revision、
    备份证据 hash、变更单 ID 和四项显式确认；
-5. 只在 manifest 为 `passed`、revision 为 `0017_market_morning_content_reports` 且表数为 33 时继续
+5. 只在 manifest 为 `passed`、revision 为 `0018_market_morning_auth_sessions` 且表数为 34 时继续
    readiness/preflight；随后再恢复 runtime。
 
 任何 source revision 漂移、Alembic 非零退出、postflight 不可用或表集合不完整都保持 runtime 关闭。

@@ -67,24 +67,21 @@ def test_model_usage_schema_is_hash_only_and_migrated_after_beta_privacy() -> No
         "created_at",
     } <= columns
     assert "provider_request_id" not in columns
-    assert any(
-        constraint.name == "uq_mm_model_usage_key"
-        for constraint in ModelUsageEventRecord.__table__.constraints
-    )
+    assert any(constraint.name == "uq_mm_model_usage_key" for constraint in ModelUsageEventRecord.__table__.constraints)
     assert any(
         constraint.name == "ck_mm_model_usage_non_negative"
         for constraint in ModelUsageEventRecord.__table__.constraints
     )
 
-    migration = Path(
-        "agent/migrations/market_morning/versions/0016_market_morning_model_usage.py"
-    ).read_text(encoding="utf-8")
+    migration = Path("agent/migrations/market_morning/versions/0016_market_morning_model_usage.py").read_text(
+        encoding="utf-8"
+    )
     assert 'down_revision: str | None = "0015_market_morning_beta_privacy"' in migration
     assert 'revision: str = "0016_market_morning_model_usage"' in migration
     assert '"mm_model_usage_events"' in migration
     assert 'ondelete="CASCADE"' in migration
     assert 'name="ck_mm_model_usage_non_negative"' in migration
-    assert EXPECTED_MARKET_MORNING_SCHEMA_REVISION == "0017_market_morning_content_reports"
+    assert EXPECTED_MARKET_MORNING_SCHEMA_REVISION == "0018_market_morning_auth_sessions"
 
 
 def test_model_usage_report_validates_tokens_cost_currency_and_request_identity() -> None:

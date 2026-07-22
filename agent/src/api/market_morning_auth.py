@@ -66,22 +66,18 @@ class VerifiedMarketMorningIdentity:
             or value != value.strip()
             or any(unicodedata.category(char).startswith("C") for char in value)
         ):
-            raise ProductAuthConfigurationError(
-                "product_auth_identity_contract_invalid"
-            )
+            raise ProductAuthConfigurationError("product_auth_identity_contract_invalid")
         if self.authenticated_at is not None and (
-            self.authenticated_at.tzinfo is None
-            or self.authenticated_at.utcoffset() is None
+            self.authenticated_at.tzinfo is None or self.authenticated_at.utcoffset() is None
         ):
-            raise ProductAuthConfigurationError(
-                "product_auth_identity_contract_invalid"
-            )
+            raise ProductAuthConfigurationError("product_auth_identity_contract_invalid")
 
 
 ProductBearerVerifier = Callable[
     [str],
     Awaitable[VerifiedMarketMorningIdentity],
 ]
+ProductBearerRevoker = Callable[[str], Awaitable[None]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +86,7 @@ class MarketMorningProductAuthAdapter:
 
     provider: str
     verify_bearer: ProductBearerVerifier
+    revoke_bearer: ProductBearerRevoker | None = None
     session_factory: Any | None = None
 
     def __post_init__(self) -> None:
@@ -97,10 +94,9 @@ class MarketMorningProductAuthAdapter:
             not isinstance(self.provider, str)
             or not _PROVIDER_RE.fullmatch(self.provider)
             or not callable(self.verify_bearer)
+            or (self.revoke_bearer is not None and not callable(self.revoke_bearer))
         ):
-            raise ProductAuthConfigurationError(
-                "product_auth_factory_contract_invalid"
-            )
+            raise ProductAuthConfigurationError("product_auth_factory_contract_invalid")
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,13 +134,9 @@ def load_product_auth_adapter(
             "Market Morning product auth factory failed: exception_type=%s",
             type(error).__name__,
         )
-        raise ProductAuthConfigurationError(
-            "product_auth_factory_failed"
-        ) from None
+        raise ProductAuthConfigurationError("product_auth_factory_failed") from None
     if not isinstance(adapter, MarketMorningProductAuthAdapter):
-        raise ProductAuthConfigurationError(
-            "product_auth_factory_contract_invalid"
-        )
+        raise ProductAuthConfigurationError("product_auth_factory_contract_invalid")
     return adapter
 
 
@@ -166,9 +158,7 @@ def configured_product_auth_adapter_cache_info():
 def _resolve_configured_adapter() -> MarketMorningProductAuthAdapter:
     factory_path = get_env_config().market_morning.auth_factory.strip()
     if not factory_path:
-        raise ProductAuthConfigurationError(
-            "product_auth_factory_not_configured"
-        )
+        raise ProductAuthConfigurationError("product_auth_factory_not_configured")
     return _load_configured_adapter(factory_path)
 
 
@@ -221,16 +211,13 @@ async def _verified_identity(
         raise _unauthorized() from error
     except Exception as error:
         logger.warning(
-            "Market Morning product identity verification failed: "
-            "provider=%s exception_type=%s",
+            "Market Morning product identity verification failed: provider=%s exception_type=%s",
             adapter.provider,
             type(error).__name__,
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Market Morning product authentication is temporarily unavailable"
-            ),
+            detail=("Market Morning product authentication is temporarily unavailable"),
         ) from error
     if not isinstance(identity, VerifiedMarketMorningIdentity):
         logger.warning(
@@ -239,11 +226,36 @@ async def _verified_identity(
         )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "Market Morning product authentication is temporarily unavailable"
-            ),
+            detail=("Market Morning product authentication is temporarily unavailable"),
         )
     return adapter, identity
+
+
+async def revoke_current_product_session(
+    credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
+) -> None:
+    adapter, _identity = await _verified_identity(credentials)
+    if credentials is None:
+        raise _unauthorized()
+    if adapter.revoke_bearer is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Market Morning session revocation is temporarily unavailable",
+        )
+    try:
+        await adapter.revoke_bearer(credentials.credentials)
+    except MarketMorningAuthenticationRejected as error:
+        raise _unauthorized() from error
+    except Exception as error:
+        logger.warning(
+            "Market Morning product session revocation failed: provider=%s exception_type=%s",
+            adapter.provider,
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Market Morning session revocation is temporarily unavailable",
+        ) from error
 
 
 def _build_product_principal_statement(
@@ -260,9 +272,7 @@ def _build_product_principal_statement(
         User.external_subject == external_subject,
         account_status_predicate,
         User.deleted_at.is_(None),
-        User.trial_or_subscription_status.in_(
-            _ENTITLED_SUBSCRIPTION_STATUSES
-        ),
+        User.trial_or_subscription_status.in_(_ENTITLED_SUBSCRIPTION_STATUSES),
     )
 
 
@@ -288,18 +298,18 @@ async def resolve_active_product_principal(
     allow_deletion_pending: bool = False,
 ) -> MarketMorningPrincipal | None:
     row = (
-        await session.execute(
-            (
-                build_account_deletion_principal_statement(
-                    external_subject=external_subject
-                )
-                if allow_deletion_pending
-                else build_active_product_principal_statement(
-                    external_subject=external_subject
+        (
+            await session.execute(
+                (
+                    build_account_deletion_principal_statement(external_subject=external_subject)
+                    if allow_deletion_pending
+                    else build_active_product_principal_statement(external_subject=external_subject)
                 )
             )
         )
-    ).mappings().one_or_none()
+        .mappings()
+        .one_or_none()
+    )
     if row is None:
         return None
     return MarketMorningPrincipal(
@@ -315,11 +325,7 @@ async def _resolve_verified_product_principal(
     *,
     allow_deletion_pending: bool = False,
 ) -> MarketMorningPrincipal:
-    factory = (
-        adapter.session_factory
-        if adapter.session_factory is not None
-        else get_session_factory()
-    )
+    factory = adapter.session_factory if adapter.session_factory is not None else get_session_factory()
     try:
         async with factory() as session:
             principal = await resolve_active_product_principal(
@@ -351,9 +357,7 @@ async def require_market_morning_onboarding_principal(
     """Verify identity without requiring an existing product user row."""
 
     _adapter, identity = await _verified_identity(credentials)
-    return MarketMorningOnboardingPrincipal(
-        external_subject=identity.external_subject
-    )
+    return MarketMorningOnboardingPrincipal(external_subject=identity.external_subject)
 
 
 async def require_market_morning_principal(
@@ -412,6 +416,7 @@ __all__ = [
     "MarketMorningPrincipal",
     "MarketMorningProductAuthAdapter",
     "ProductAuthConfigurationError",
+    "ProductBearerRevoker",
     "ProductBearerVerifier",
     "VerifiedMarketMorningIdentity",
     "build_account_deletion_principal_statement",
@@ -423,5 +428,6 @@ __all__ = [
     "require_market_morning_onboarding_principal",
     "require_market_morning_principal",
     "require_recent_market_morning_principal",
+    "revoke_current_product_session",
     "resolve_active_product_principal",
 ]

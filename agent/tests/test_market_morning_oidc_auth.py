@@ -118,9 +118,7 @@ def test_product_adapter_rejects_invalid_required_claims(claims) -> None:
     )
 
     with pytest.raises(MarketMorningAuthenticationRejected):
-        asyncio.run(
-            adapter.verify_bearer(_token(private_key, claims=claims))
-        )
+        asyncio.run(adapter.verify_bearer(_token(private_key, claims=claims)))
 
 
 def test_algorithm_confusion_is_rejected_before_jwks_fetch() -> None:
@@ -201,9 +199,7 @@ def test_unknown_kid_refresh_is_bounded_and_mixed_jwks_keys_are_ignored() -> Non
 
     for key_id in ("attacker-key-1", "attacker-key-2"):
         with pytest.raises(MarketMorningAuthenticationRejected):
-            asyncio.run(
-                adapter.verify_bearer(_token(private_key, kid=key_id))
-            )
+            asyncio.run(adapter.verify_bearer(_token(private_key, kid=key_id)))
     assert calls == ["fetch", "fetch"]
 
 
@@ -258,6 +254,55 @@ def test_session_validator_runs_per_request_and_revocation_fails_closed() -> Non
     assert calls == [(token, "provider-session-17")] * 2
 
 
+def test_access_tokens_longer_than_configured_session_window_are_rejected() -> None:
+    from src.api.market_morning_auth import MarketMorningAuthenticationRejected
+    from src.market_morning.oidc_auth import build_product_auth_adapter
+
+    private_key = _key()
+
+    async def fetch():
+        return {"keys": [_jwk(private_key, kid="key-1")]}
+
+    claims = _claims()
+    claims["exp"] = claims["iat"] + 901
+    adapter = build_product_auth_adapter(
+        settings=_settings(),
+        session_validator=_active_session,
+        jwks_fetcher=fetch,
+    )
+    with pytest.raises(MarketMorningAuthenticationRejected):
+        asyncio.run(adapter.verify_bearer(_token(private_key, claims=claims)))
+
+
+def test_adapter_revokes_the_verified_application_session() -> None:
+    from src.market_morning.oidc_auth import build_product_auth_adapter
+
+    private_key = _key()
+
+    async def fetch():
+        return {"keys": [_jwk(private_key, kid="key-1")]}
+
+    class Validator:
+        def __init__(self):
+            self.revoked = []
+
+        async def __call__(self, _token, _claims):
+            return True
+
+        async def revoke_claims(self, claims, *, reason):
+            self.revoked.append((claims["sid"], reason))
+            return True
+
+    validator = Validator()
+    adapter = build_product_auth_adapter(
+        settings=_settings(),
+        session_validator=validator,
+        jwks_fetcher=fetch,
+    )
+    asyncio.run(adapter.revoke_bearer(_token(private_key)))
+    assert validator.revoked == [("provider-session-17", "logout")]
+
+
 def test_admin_roles_map_only_to_explicit_least_privilege_permissions() -> None:
     from src.api.market_morning_admin_auth import (
         MarketMorningAdminAuthenticationRejected,
@@ -282,23 +327,15 @@ def test_admin_roles_map_only_to_explicit_least_privilege_permissions() -> None:
         adapter.verify_bearer(
             _token(
                 private_key,
-                claims=_claims(
-                    roles=["morning-reader", "morning-reviewer", "unknown"]
-                ),
+                claims=_claims(roles=["morning-reader", "morning-reviewer", "unknown"]),
             )
         )
     )
-    assert allowed.permissions == frozenset(
-        {"operations.read", "content.review"}
-    )
+    assert allowed.permissions == frozenset({"operations.read", "content.review"})
     assert SUBJECT not in allowed.actor_reference
 
     with pytest.raises(MarketMorningAdminAuthenticationRejected):
-        asyncio.run(
-            adapter.verify_bearer(
-                _token(private_key, claims=_claims(roles=["unknown"]))
-            )
-        )
+        asyncio.run(adapter.verify_bearer(_token(private_key, claims=_claims(roles=["unknown"]))))
 
 
 def test_role_mapping_and_endpoint_configuration_fail_closed() -> None:
@@ -323,9 +360,7 @@ def test_role_mapping_and_endpoint_configuration_fail_closed() -> None:
             audience=AUDIENCE,
         )
     with pytest.raises(OidcConfigurationError):
-        parse_admin_role_permissions(
-            json.dumps({"admin": ["root.everything"]})
-        )
+        parse_admin_role_permissions(json.dumps({"admin": ["root.everything"]}))
 
 
 def test_builtin_factories_load_required_session_validator_and_role_mapping(
@@ -355,9 +390,7 @@ def test_builtin_factories_load_required_session_validator_and_role_mapping(
         "VIBE_MARKET_MORNING_OIDC_SESSION_VALIDATOR_FACTORY": (
             "test_market_morning_oidc_deployment:build_session_validator"
         ),
-        "VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON": json.dumps(
-            {"operator": ["operations.read"]}
-        ),
+        "VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON": json.dumps({"operator": ["operations.read"]}),
     }
     for name, value in values.items():
         monkeypatch.setenv(name, value)
@@ -399,9 +432,7 @@ def test_builtin_oidc_preflight_emits_only_stable_codes() -> None:
             oidc_jwks_url=JWKS_URL,
             oidc_audience=AUDIENCE,
             oidc_session_validator_factory="deployment.identity:build_session",
-            oidc_admin_role_permissions_json=json.dumps(
-                {"operator": ["operations.read"]}
-            ),
+            oidc_admin_role_permissions_json=json.dumps({"operator": ["operations.read"]}),
         )
     )
     assert ready == ()
@@ -416,3 +447,14 @@ def test_builtin_oidc_preflight_emits_only_stable_codes() -> None:
         )
     )
     assert invalid_factory == ("oidc_session_validator_factory_invalid",)
+
+    builtin_ledger_without_claim = builtin_oidc_preflight_checks(
+        MarketMorningConfig(
+            auth_factory=BUILTIN_PRODUCT_AUTH_FACTORY,
+            oidc_issuer=ISSUER,
+            oidc_jwks_url=JWKS_URL,
+            oidc_audience=AUDIENCE,
+            oidc_session_validator_factory=("src.market_morning.session_ledger:build_session_validator"),
+        )
+    )
+    assert builtin_ledger_without_claim == ("oidc_session_claim_missing",)
