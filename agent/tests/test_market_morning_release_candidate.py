@@ -283,12 +283,30 @@ def test_required_release_source_artifacts_pin_oidc_staging_contract() -> None:
     )
 
 
+def test_required_release_source_artifacts_pin_oidc_staging_probe_runner() -> None:
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_oidc_staging_probe"] == (
+        "agent/src/market_morning/oidc_staging_probe.py"
+    )
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_oidc_staging_probe_cli"] == (
+        "agent/src/market_morning/oidc_staging_probe_cli.py"
+    )
+
+
 def test_release_candidate_console_script_is_packaged() -> None:
     project = Path("pyproject.toml").read_text(encoding="utf-8")
 
     assert (
         'vibe-trading-market-morning-release-candidate = '
         '"src.market_morning.release_candidate_cli:main"'
+    ) in project
+
+
+def test_oidc_staging_probe_console_script_is_packaged() -> None:
+    project = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert (
+        'vibe-trading-market-morning-oidc-staging-probe = '
+        '"src.market_morning.oidc_staging_probe_cli:main"'
     ) in project
 
 

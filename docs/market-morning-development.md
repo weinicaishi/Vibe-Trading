@@ -1047,7 +1047,8 @@ CI 在普通后端测试、前端 build/test、真实 MySQL 12/12 acceptance 和
 40–64 位 Git revision：
 
 - clean worktree，以及 `requirements-lock.txt`、`frontend/package-lock.json`、容器定义、CI workflow、
-  当前 migration、0018 SQL/ZIP、Auth0 Post-Login Action／部署合同和 monitoring rules 等十六项固定
+  当前 migration、0018 SQL/ZIP、Auth0 Post-Login Action／部署合同、OIDC staging 自动探针和
+  monitoring rules 等二十项固定
   发布源文件的 SHA-256；
 - 后端测试、前端 build、前端测试、MySQL acceptance 与 migration rehearsal 五份输出的 SHA-256；
 - 当前 runtime schema `0018_market_morning_auth_sessions`。

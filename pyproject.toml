@@ -83,6 +83,7 @@ vibe-trading-market-morning-staging-gate = "src.market_morning.staging_evidence_
 vibe-trading-market-morning-t1-release-gate = "src.market_morning.t1_release_gate_cli:main"
 vibe-trading-market-morning-monitoring-drill = "src.market_morning.monitoring_drill_cli:main"
 vibe-trading-market-morning-release-candidate = "src.market_morning.release_candidate_cli:main"
+vibe-trading-market-morning-oidc-staging-probe = "src.market_morning.oidc_staging_probe_cli:main"
 vibe-trading-market-morning-staging-day = "src.market_morning.staging_day_evidence_cli:main"
 vibe-trading-market-morning-staging-gate-artifact = "src.market_morning.staging_gate_artifact_cli:main"
 

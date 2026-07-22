@@ -319,6 +319,42 @@ Auth0 API 的 `configured_max_access_token_lifetime_seconds` 必须精确为 `90
 refresh/ID token、Authorization header、OAuth code/PKCE verifier、邀请 token、邮箱、
 Auth0 subject 或其他个人身份。
 
+真实演练统一使用 `vibe-trading-market-morning-oidc-staging-probe`，不要再手工填写
+passed JSON。执行前必须同时满足：
+
+- 输入一个已通过且与待部署 staging 完全同 revision 的 release-candidate manifest；
+- Operator access token 来自独立 Operator SPA，账号至少具有
+  `market-morning-access-admin` 角色，以同时证明 `operations.read` 与 `access.manage`；
+- 两个 Product access token 来自同一个新私测用户、同一个 Product SPA，但必须是两个不同
+  token 实例；第二个 token 用于证明第一个 token 注销后，跨会话关注股仍存在；
+- 三个 token 只能放在互不相同的 owner-only 普通文件中（`0600`、单硬链接、非 symlink），
+  不得放进命令行、环境变量、日志、工单或仓库；
+- `--api-base-url` 必须是非 localhost 的 HTTPS staging 地址，`--issuer-id` 必须是 staging
+  IssuerMaster 中已存在的 UUID v4；刊期必须等于执行开始时的 JST 日期；
+- API 的 Maximum Access Token Lifetime 已保存为 900 秒，并在保存后重新登录取得全部新 token。
+
+由受控凭据引导任务写入上述三个 token 文件后，运行：
+
+```bash
+vibe-trading-market-morning-oidc-staging-probe \
+  --release-candidate /secure/evidence/release-candidate.json \
+  --api-base-url https://staging.example.invalid \
+  --api-audience https://api.example.invalid/market-morning \
+  --run-id staging-YYYY-MM-DD \
+  --edition-date YYYY-MM-DD \
+  --issuer-id 00000000-0000-4000-8000-000000000000 \
+  --product-token-file /secure/volatile/product-a.token \
+  --product-secondary-token-file /secure/volatile/product-b.token \
+  --operator-token-file /secure/volatile/operator.token \
+  --output /secure/evidence/oidc-staging.json \
+  --confirm-staging-side-effects
+```
+
+该命令会真实创建一份邀请、接受私测、写入一只关注股，并精确撤销 Operator token 与第一个
+Product token；因此 `--confirm-staging-side-effects` 是强制参数。输出只包含严格合同允许的状态、
+稳定 failure code 和 SHA-256 引用。失败时也保存脱敏证据但退出码为 1；不安全的本地输入在发出
+网络请求前退出码为 2。执行后立即安全销毁三个 token 文件，不删除失败证据。
+
 生成 `oidc_session` artifact 时仍使用
 `vibe-trading-market-morning-staging-gate-artifact`；CLI 会先解析上述严格合同，再校验
 release/run/刊期/时间/status 与 `--provider-id auth0`，任一不匹配都拒绝生成

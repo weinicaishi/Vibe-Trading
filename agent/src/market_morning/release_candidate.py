@@ -31,6 +31,12 @@ REQUIRED_SOURCE_ARTIFACTS: Mapping[str, str] = {
     "market_morning_oidc_staging_contract": (
         "agent/src/market_morning/oidc_staging_evidence.py"
     ),
+    "market_morning_oidc_staging_probe": (
+        "agent/src/market_morning/oidc_staging_probe.py"
+    ),
+    "market_morning_oidc_staging_probe_cli": (
+        "agent/src/market_morning/oidc_staging_probe_cli.py"
+    ),
     "market_morning_oidc_staging_template": (
         "docs/evidence/market-morning/oidc-staging.template.json"
     ),

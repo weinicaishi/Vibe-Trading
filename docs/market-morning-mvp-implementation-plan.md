@@ -4,7 +4,7 @@
 > [MVP 完成度审计](./market-morning-mvp-completion-audit.md)。
 > 有效不可变候选以 `release/market-morning-mvp` 的 GitHub Actions artifact 为准，不在计划中
 > 手填一个会过期的“当前” revision。最终同一 revision 必须通过九项 release-candidate
-> 检查，runtime schema 为 `0018_market_morning_auth_sessions`，18 个固定发布源文件和 5 份
+> 检查，runtime schema 为 `0018_market_morning_auth_sessions`，20 个固定发布源文件和 5 份
 > 验证证据 hash 完整。本地 manifest 不替代 CI。
 > 本地/CI 证据均固定不计连续 staging 日或 T1 发布证据。产品主库仍为 `0004`
 > 且未执行迁移。
@@ -314,7 +314,7 @@ calendar contract、MySQL 连通性和精确 `0018` revision。生产 worker 还
 顺序执行 licensed sources、market snapshots、EventBrief model、source reachability、email
 delivery 五个 deployment-owned 无副作用探针；缺项、异常或 10 秒超时均以脱敏错误码拒绝启动。
 fixture／缺配置／旧 schema 均拒绝启动；scheduler 与 worker 共用 SIGINT/SIGTERM stop event。当前直接按
-`agent/tests/test_market_morning_*.py` 运行的普通 Market Morning 回归为 885 项通过、15 项按默认安全策略跳过；隔离 MySQL 8.0 与远程专用验收库上的 12 项业务 probe、3 项
+`agent/tests/test_market_morning_*.py` 运行的普通 Market Morning 回归为 915 项通过、15 项按默认安全策略跳过；隔离 MySQL 8.0 与远程专用验收库上的 12 项业务 probe、3 项
 破坏性 migration probe 均已分别 12/12、3/3 通过。远程并发验收还发现并修正了 current global run
 切换时的同表更新顺序：先单独 flush 旧版本 demotion，再 promotion 新版本，避免 MySQL generated
 unique key 观察到瞬时双 current。前端最近一次回归为 342 项通过且生产构建成功，迁移 head 已推进到
@@ -506,7 +506,7 @@ downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含�
 开关继续关闭，Sprint 7 仍为进行中。已按哈希锁文件补齐全仓库运行依赖，并在开发依赖中声明
 `pytest-asyncio`；生产日历/行情与 runtime strict assembly 落地后，直接按
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
-`903 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
+`915 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
 `6335 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有
@@ -552,7 +552,7 @@ CI 现已在上述后端、前端 build/test 和 MySQL 12+3 全部成功后生�
 Gate 要求 checkout 为 clean tree、Git revision 与 CI 预期 revision 一致、runtime schema 为 0018，且
 依赖锁、容器/compose、CI workflow、当前 migration、0018 SQL/ZIP、monitoring rules、最终 production
 runtime factory、主运行手册、Auth0 Post-Login Action／部署合同、OIDC staging
-严格合同／默认 blocked 模板及 monitoring/T1 严格证据模板共十八项
+严格合同／自动化真实演练探针／默认 blocked 模板及 monitoring/T1 严格证据模板共二十项
 固定发布源文件均已被 Git 跟踪并可计算
 SHA-256；五份验证输出也必须完整，MySQL 两份还须通过同环境合同
 校验。输出只保留固定名称、revision、检查状态、阻断码和 hash，且固定不计为 staging/T1 证据。
@@ -565,6 +565,10 @@ staging 部署和随后五日 evidence 必须使用该 manifest 的同一 revisi
 严格 Auth0 证据：900 秒 TTL、Product/Operator 双链路、角色保护 API、精确 token 注销、
 旧 token 被拒绝和 Product 跨会话关注股，且不得包含 token、header、OAuth code/
 PKCE verifier、邀请码或个人身份。
+真实演练探针已把 Operator 角色保护 API／邀请码创建、Product onboarding、关注股跨会话和两个
+精确 token 注销串成一个 fail-closed 流程；只从 `0600`、非 symlink、单硬链接文件读取三份短期
+token，拒绝 localhost 作为可计数 staging，输出仅含稳定状态和 hash。真实通过证据仍必须在
+900 秒新 token、非本机 HTTPS staging 与同 revision release candidate 上实际执行。
 通用 artifact CLI 不再信任手填 `--status passed`；该 Gate 的原始证据必须先通过上述
 专用合同。真实 provider/OIDC/邮件/监控证据仍须由 staging 系统产生。
 
