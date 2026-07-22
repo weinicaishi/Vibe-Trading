@@ -2,6 +2,11 @@
 
 > 状态：Sprint 0–7 的工程主体已形成，当前处于准上线缺口收口与外部 T1 Gate 验证阶段；完成度与证据见
 > [MVP 完成度审计](./market-morning-mvp-completion-audit.md)。
+> 本次文档校准所依据的不可变候选为 `4a60a57134e878ae8aeb623bb93dc59ca3240ada`：本地后端
+> `6301 passed, 24 skipped`，前端 production build 与 `341 passed`，远程专用 MySQL
+> acceptance `12/12`、migration rehearsal `3/3`；GitHub Actions run `29888519663` 的九项
+> release-candidate 检查全部通过，runtime schema 为 `0017_market_morning_content_reports`。
+> 这些 CI 证据固定不计连续 staging 日或 T1 发布证据；产品主库仍为 `0004` 且未执行迁移。
 >
 > 上位规格：[Market Morning MVP v3](./market-morning-mvp-v3-xmind.md)。本计划不改变其中的产品边界；如有冲突，以 v3 为准，先更新 v3 再实施。
 
@@ -502,7 +507,7 @@ downgrade 的显式确认；升级后精确校验 `0017`/33 表并输出不含�
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
 `867 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
-`6300 passed, 24 skipped`，无失败或错误；24 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
+`6301 passed, 24 skipped`，无失败或错误；24 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有
 lint 债务；Market Morning 范围 Ruff 已通过，两个范围必须分别记录。
 指标出口与运营摘要共用同一隐私安全 read model，输出健康度、告警、来源状态、job／brief／投递／
