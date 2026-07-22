@@ -274,6 +274,15 @@ def test_required_release_source_artifacts_pin_auth0_deployment_contract() -> No
     assert REQUIRED_SOURCE_ARTIFACTS["market_morning_auth0_runbook"] == "deploy/auth0/README.md"
 
 
+def test_required_release_source_artifacts_pin_oidc_staging_contract() -> None:
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_oidc_staging_contract"] == (
+        "agent/src/market_morning/oidc_staging_evidence.py"
+    )
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_oidc_staging_template"] == (
+        "docs/evidence/market-morning/oidc-staging.template.json"
+    )
+
+
 def test_release_candidate_console_script_is_packaged() -> None:
     project = Path("pyproject.toml").read_text(encoding="utf-8")
 

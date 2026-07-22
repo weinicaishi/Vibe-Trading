@@ -302,6 +302,29 @@ body 或 provider 响应。通过日要求 11 项 Gate 全绿、06:30–08:30 JS
 usage/cost，且明确 `contains_fixture_data=false`、`contains_synthetic_data=false`。失败日仍要保存稳定
 failure code，但必须 `counts_as_staging_day=false`。
 
+`oidc_session` 不允许直接对任意日志传入 `--status passed`。先从
+`docs/evidence/market-morning/oidc-staging.template.json` 复制一份到受控证据目录，
+再用同一 release revision、run ID、刊期和开始／结束时间填写真实 Auth0 演练结果。
+通过证据必须同时包含下列十项检查：
+
+- Operator 登录、角色授权和受保护 API 访问；
+- Operator 精确 token 注销，同一旧 token 再访问必须被拒绝；
+- Product 登录、私测邀请 onboarding 和关注股跨会话持久化；
+- Product 精确 token 注销，同一旧 token 再访问必须被拒绝。
+
+Auth0 API 的 `configured_max_access_token_lifetime_seconds` 必须精确为 `900`，两个 SPA
+实际观察到的 token lifetime 必须为 `1–900` 秒，session mode 必须为
+`access_token_sha256`。tenant、两个 client 和 audience 只保存 SHA-256 引用，Product
+和 Operator client 引用必须不同。原始证据和汇总 JSON 均不得包含 access/
+refresh/ID token、Authorization header、OAuth code/PKCE verifier、邀请 token、邮箱、
+Auth0 subject 或其他个人身份。
+
+生成 `oidc_session` artifact 时仍使用
+`vibe-trading-market-morning-staging-gate-artifact`；CLI 会先解析上述严格合同，再校验
+release/run/刊期/时间/status 与 `--provider-id auth0`，任一不匹配都拒绝生成
+passed artifact。仓库模板永久是 `failed` 且 `counts_as_staging_oidc_evidence=false`，
+不能作为真实演练证据。
+
 从本次 release 的首个 staging 日起，把全部单日报告交给
 `vibe-trading-market-morning-staging-gate`；不要删除中间失败日或只挑选绿色报告。聚合器只认最新
 连续 streak：JPX previous/next open-session 链断裂、失败日、release 或 calendar provider 切换都会

@@ -28,6 +28,12 @@ REQUIRED_SOURCE_ARTIFACTS: Mapping[str, str] = {
     "market_morning_mysql_schema": ("database/market-morning/mysql/market_morning_schema_0018.sql"),
     "market_morning_monitoring_rules": ("deploy/market-morning/monitoring/market-morning.rules.yml"),
     "market_morning_monitoring_drill_template": ("docs/evidence/market-morning/monitoring-drill.template.json"),
+    "market_morning_oidc_staging_contract": (
+        "agent/src/market_morning/oidc_staging_evidence.py"
+    ),
+    "market_morning_oidc_staging_template": (
+        "docs/evidence/market-morning/oidc-staging.template.json"
+    ),
     "market_morning_operations_runbook": ("docs/market-morning-operations-runbook.md"),
     "market_morning_production_runtime_factory": ("agent/src/market_morning/production_runtime_factory.py"),
     "market_morning_t1_signoff_template": ("docs/evidence/market-morning/t1-external-signoffs.template.json"),

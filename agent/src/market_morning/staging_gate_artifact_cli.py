@@ -13,6 +13,10 @@ from src.market_morning.release_candidate import (
     ReleaseCandidateError,
     parse_release_candidate_manifest,
 )
+from src.market_morning.oidc_staging_evidence import (
+    OidcStagingEvidenceError,
+    parse_oidc_staging_evidence,
+)
 from src.market_morning.staging_day_evidence import (
     build_staging_gate_artifact_payload,
 )
@@ -86,6 +90,39 @@ def _hash_evidence(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _validate_oidc_probe_status(
+    path: Path,
+    *,
+    run_id: str,
+    release_revision: str | None,
+    edition_date: str,
+    started_at: str,
+    finished_at: str,
+    status: str,
+    provider_ids: tuple[str, ...],
+) -> None:
+    try:
+        evidence = parse_oidc_staging_evidence(_read_json(path))
+    except OidcStagingEvidenceError as error:
+        raise StagingEvidenceError(str(error)) from error
+    if evidence.release_revision != release_revision:
+        raise StagingEvidenceError("oidc_session evidence uses another release")
+    if evidence.run_id != run_id:
+        raise StagingEvidenceError("oidc_session evidence uses another run")
+    if evidence.edition_date.isoformat() != edition_date:
+        raise StagingEvidenceError("oidc_session evidence uses another edition date")
+    if evidence.started_at.isoformat() != started_at:
+        raise StagingEvidenceError("oidc_session started_at does not match")
+    if evidence.finished_at.isoformat() != finished_at:
+        raise StagingEvidenceError("oidc_session finished_at does not match")
+    if evidence.status != status:
+        raise StagingEvidenceError("oidc_session evidence status does not match")
+    if evidence.identity_provider not in provider_ids:
+        raise StagingEvidenceError(
+            "oidc_session provider_ids must include the identity provider"
+        )
+
+
 def _write_payload(destination: Path, payload: dict[str, Any]) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
@@ -113,6 +150,17 @@ def run_cli(argv: list[str] | None = None) -> int:
         release_candidate = parse_release_candidate_manifest(
             _read_json(release_path)
         )
+        if args.gate == "oidc_session":
+            _validate_oidc_probe_status(
+                evidence_path,
+                run_id=args.run_id,
+                release_revision=release_candidate.release_revision,
+                edition_date=args.edition_date,
+                started_at=args.started_at,
+                finished_at=args.finished_at,
+                status=args.status,
+                provider_ids=tuple(args.provider_id),
+            )
         payload = build_staging_gate_artifact_payload(
             release_candidate=release_candidate,
             gate=args.gate,

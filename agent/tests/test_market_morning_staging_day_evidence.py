@@ -93,6 +93,28 @@ def _artifacts(**overrides):
     return {gate: parse_staging_gate_artifact(payload) for gate, payload in payloads.items()}
 
 
+def _passed_oidc_probe(*, run_id: str = "staging-2026-07-22") -> dict[str, object]:
+    payload = json.loads(
+        Path("docs/evidence/market-morning/oidc-staging.template.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    payload.update(
+        run_id=run_id,
+        release_revision=RELEASE,
+        edition_date="2026-07-22",
+        started_at="2026-07-22T06:20:00+09:00",
+        finished_at="2026-07-22T06:21:00+09:00",
+        observed_product_access_token_lifetime_seconds=900,
+        observed_operator_access_token_lifetime_seconds=900,
+        status="passed",
+        counts_as_staging_oidc_evidence=True,
+        failure_codes=[],
+    )
+    payload["checks"] = {name: "passed" for name in payload["checks"]}
+    return payload
+
+
 def test_builder_emits_one_strict_passed_staging_day() -> None:
     from src.market_morning.staging_day_evidence import build_staging_day_evidence
 
@@ -381,6 +403,222 @@ def test_gate_artifact_cli_writes_failed_envelope_and_returns_one(tmp_path: Path
 
     assert exit_code == 1
     assert json.loads(output.read_text(encoding="utf-8"))["failure_code"] == "schema_outdated"
+
+
+def test_oidc_gate_artifact_cli_rejects_failed_probe_claimed_as_passed(
+    tmp_path: Path,
+) -> None:
+    from src.market_morning.staging_gate_artifact_cli import run_cli
+
+    candidate = tmp_path / "release-candidate.json"
+    candidate.write_text(json.dumps(_release_candidate().to_dict()), encoding="utf-8")
+    raw_evidence = tmp_path / "oidc-session-probe.json"
+    raw_evidence.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "scope": "market_morning_oidc_staging_probe",
+                "environment_tier": "staging",
+                "release_revision": RELEASE,
+                "status": "failed",
+                "counts_as_staging_oidc_evidence": False,
+                "failure_codes": ["oidc_e2e_not_run"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as caught:
+        run_cli(
+            [
+                "--release-candidate",
+                str(candidate),
+                "--gate",
+                "oidc_session",
+                "--run-id",
+                "staging-2026-07-22",
+                "--edition-date",
+                "2026-07-22",
+                "--previous-jpx-open-date",
+                "2026-07-21",
+                "--next-jpx-open-date",
+                "2026-07-23",
+                "--calendar-provider",
+                "licensed-jpx-calendar",
+                "--provider-id",
+                "auth0",
+                "--started-at",
+                "2026-07-22T06:20:00+09:00",
+                "--finished-at",
+                "2026-07-22T06:21:00+09:00",
+                "--status",
+                "passed",
+                "--evidence",
+                str(raw_evidence),
+                "--output",
+                str(tmp_path / "oidc-artifact.json"),
+            ]
+        )
+
+    assert caught.value.code == 2
+
+
+def test_oidc_gate_artifact_cli_rejects_incomplete_passed_probe(
+    tmp_path: Path,
+) -> None:
+    from src.market_morning.staging_gate_artifact_cli import run_cli
+
+    candidate = tmp_path / "release-candidate.json"
+    candidate.write_text(json.dumps(_release_candidate().to_dict()), encoding="utf-8")
+    raw_evidence = tmp_path / "oidc-session-probe.json"
+    raw_evidence.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "scope": "market_morning_oidc_staging_probe",
+                "environment_tier": "staging",
+                "release_revision": RELEASE,
+                "status": "passed",
+                "counts_as_staging_oidc_evidence": True,
+                "failure_codes": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as caught:
+        run_cli(
+            [
+                "--release-candidate",
+                str(candidate),
+                "--gate",
+                "oidc_session",
+                "--run-id",
+                "staging-2026-07-22",
+                "--edition-date",
+                "2026-07-22",
+                "--previous-jpx-open-date",
+                "2026-07-21",
+                "--next-jpx-open-date",
+                "2026-07-23",
+                "--calendar-provider",
+                "licensed-jpx-calendar",
+                "--provider-id",
+                "auth0",
+                "--started-at",
+                "2026-07-22T06:20:00+09:00",
+                "--finished-at",
+                "2026-07-22T06:21:00+09:00",
+                "--status",
+                "passed",
+                "--evidence",
+                str(raw_evidence),
+                "--output",
+                str(tmp_path / "oidc-artifact.json"),
+            ]
+        )
+
+    assert caught.value.code == 2
+
+
+def test_oidc_gate_artifact_cli_rejects_probe_from_another_run(
+    tmp_path: Path,
+) -> None:
+    from src.market_morning.staging_gate_artifact_cli import run_cli
+
+    candidate = tmp_path / "release-candidate.json"
+    candidate.write_text(json.dumps(_release_candidate().to_dict()), encoding="utf-8")
+    raw_evidence = tmp_path / "oidc-session-probe.json"
+    raw_evidence.write_text(
+        json.dumps(_passed_oidc_probe(run_id="other-run")),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit) as caught:
+        run_cli(
+            [
+                "--release-candidate",
+                str(candidate),
+                "--gate",
+                "oidc_session",
+                "--run-id",
+                "staging-2026-07-22",
+                "--edition-date",
+                "2026-07-22",
+                "--previous-jpx-open-date",
+                "2026-07-21",
+                "--next-jpx-open-date",
+                "2026-07-23",
+                "--calendar-provider",
+                "licensed-jpx-calendar",
+                "--provider-id",
+                "auth0",
+                "--started-at",
+                "2026-07-22T06:20:00+09:00",
+                "--finished-at",
+                "2026-07-22T06:21:00+09:00",
+                "--status",
+                "passed",
+                "--evidence",
+                str(raw_evidence),
+                "--output",
+                str(tmp_path / "oidc-artifact.json"),
+            ]
+        )
+
+    assert caught.value.code == 2
+
+
+def test_oidc_gate_artifact_cli_accepts_complete_matching_probe(
+    tmp_path: Path,
+) -> None:
+    from src.market_morning.staging_day_evidence import parse_staging_gate_artifact
+    from src.market_morning.staging_gate_artifact_cli import run_cli
+
+    candidate = tmp_path / "release-candidate.json"
+    candidate.write_text(json.dumps(_release_candidate().to_dict()), encoding="utf-8")
+    raw_evidence = tmp_path / "oidc-session-probe.json"
+    raw_evidence.write_text(json.dumps(_passed_oidc_probe()), encoding="utf-8")
+    output = tmp_path / "oidc-artifact.json"
+
+    exit_code = run_cli(
+        [
+            "--release-candidate",
+            str(candidate),
+            "--gate",
+            "oidc_session",
+            "--run-id",
+            "staging-2026-07-22",
+            "--edition-date",
+            "2026-07-22",
+            "--previous-jpx-open-date",
+            "2026-07-21",
+            "--next-jpx-open-date",
+            "2026-07-23",
+            "--calendar-provider",
+            "licensed-jpx-calendar",
+            "--provider-id",
+            "auth0",
+            "--started-at",
+            "2026-07-22T06:20:00+09:00",
+            "--finished-at",
+            "2026-07-22T06:21:00+09:00",
+            "--status",
+            "passed",
+            "--evidence",
+            str(raw_evidence),
+            "--output",
+            str(output),
+        ]
+    )
+
+    artifact = parse_staging_gate_artifact(
+        json.loads(output.read_text(encoding="utf-8"))
+    )
+    assert exit_code == 0
+    assert artifact.status == "passed"
+    assert artifact.gate == "oidc_session"
+    assert artifact.provider_ids == ("auth0",)
 
 
 def test_pyproject_exposes_staging_day_builder_entrypoint() -> None:

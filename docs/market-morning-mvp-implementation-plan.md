@@ -2,12 +2,10 @@
 
 > 状态：Sprint 0–7 的工程主体已形成，当前处于准上线缺口收口与外部 T1 Gate 验证阶段；完成度与证据见
 > [MVP 完成度审计](./market-morning-mvp-completion-audit.md)。
-> 本次文档校准所依据的本地不可变候选为 `e4a10ec7b1f41b14b8d6a3515397e721e60566fb`：无真实
-> `.env` 的整仓后端 `6317 passed, 25 skipped`，前端 production build 与 `342 passed`，远程专用
-> MySQL acceptance `12/12`、migration rehearsal `3/3`；九项 release-candidate 检查全绿，runtime
-> schema 为 `0018_market_morning_auth_sessions`，16 个固定发布源文件和 5 份验证证据 hash 完整，
-> manifest SHA-256 为 `8745fa64db9e02a85ffc5e4e4cf3ba2516031174b2157d8cbf268b2e74fe5b3c`。
-> 远端发布线必须由 GitHub Actions 对最终同一 revision 独立复验；本地 manifest 不替代 CI。
+> 有效不可变候选以 `release/market-morning-mvp` 的 GitHub Actions artifact 为准，不在计划中
+> 手填一个会过期的“当前” revision。最终同一 revision 必须通过九项 release-candidate
+> 检查，runtime schema 为 `0018_market_morning_auth_sessions`，18 个固定发布源文件和 5 份
+> 验证证据 hash 完整。本地 manifest 不替代 CI。
 > 本地/CI 证据均固定不计连续 staging 日或 T1 发布证据。产品主库仍为 `0004`
 > 且未执行迁移。
 >
@@ -508,9 +506,9 @@ downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含�
 开关继续关闭，Sprint 7 仍为进行中。已按哈希锁文件补齐全仓库运行依赖，并在开发依赖中声明
 `pytest-asyncio`；生产日历/行情与 runtime strict assembly 落地后，直接按
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
-`885 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
+`903 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
-`6317 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
+`6335 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有
 lint 债务；Market Morning 范围 Ruff 已通过，两个范围必须分别记录。
 指标出口与运营摘要共用同一隐私安全 read model，输出健康度、告警、来源状态、job／brief／投递／
@@ -553,7 +551,8 @@ MySQL 8.0 容器和远程 `environment=staging` 专用 acceptance 库各执行 1
 CI 现已在上述后端、前端 build/test 和 MySQL 12+3 全部成功后生成不可变 release candidate manifest。
 Gate 要求 checkout 为 clean tree、Git revision 与 CI 预期 revision 一致、runtime schema 为 0018，且
 依赖锁、容器/compose、CI workflow、当前 migration、0018 SQL/ZIP、monitoring rules、最终 production
-runtime factory、主运行手册、Auth0 Post-Login Action／部署合同及 monitoring/T1 严格证据模板共十六项
+runtime factory、主运行手册、Auth0 Post-Login Action／部署合同、OIDC staging
+严格合同／默认 blocked 模板及 monitoring/T1 严格证据模板共十八项
 固定发布源文件均已被 Git 跟踪并可计算
 SHA-256；五份验证输出也必须完整，MySQL 两份还须通过同环境合同
 校验。输出只保留固定名称、revision、检查状态、阻断码和 hash，且固定不计为 staging/T1 证据。
@@ -562,7 +561,12 @@ staging 部署和随后五日 evidence 必须使用该 manifest 的同一 revisi
 通过的 release candidate 派生 revision/schema/candidate hash；11 个严格 artifact 再由单日 builder
 验证共同 run ID、刊期、JPX 前后交易日、calendar provider 和至少五个生产 provider 后生成既有
 `market_morning_staging_day` 合同。失败 Gate 仍产生可审计但不计数的日报。由此五日聚合器不再依赖
-人工复制 revision 或手写整份日报；真实 provider/OIDC/邮件/监控证据仍须由 staging 系统产生。
+人工复制 revision 或手写整份日报。`oidc_session` 又额外要求同一 release/run/刊期的
+严格 Auth0 证据：900 秒 TTL、Product/Operator 双链路、角色保护 API、精确 token 注销、
+旧 token 被拒绝和 Product 跨会话关注股，且不得包含 token、header、OAuth code/
+PKCE verifier、邀请码或个人身份。
+通用 artifact CLI 不再信任手填 `--status passed`；该 Gate 的原始证据必须先通过上述
+专用合同。真实 provider/OIDC/邮件/监控证据仍须由 staging 系统产生。
 
 迁移验收使用另一个默认拒绝执行的 CLI 与名称匹配
 `market_morning_migration_acceptance*` 的独立可丢弃数据库，不允许复用上述业务验收库。它要求显式
