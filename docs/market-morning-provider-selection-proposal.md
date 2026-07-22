@@ -7,7 +7,7 @@
 
 | 能力 | 推荐默认项 | 代码状态 | 上线前仍需完成 |
 |---|---|---|---|
-| 产品/运营身份 | Auth0 独立 tenant/application | 通用 OIDC/JWKS、角色、逐请求 session-validator port、官方 Auth0 SPA SDK 2.23 product/operator bootstrap（PKCE、memory cache、rotating refresh、callback 清理、revoke/logout）与登录/登出/失败恢复界面，以及按 user UUID + 伪名 subject 严格回绑的邮箱 resolver factory 已完成 | 真实 tenant/application、允许 URL 与 role Action、真实撤权/session validator、身份目录查询 adapter、跨会话与管理员最小权限 E2E |
+| 产品/运营身份 | Auth0 独立 tenant/application；是否购买 Enterprise 必须在建 tenant 前决定 | 通用 OIDC/JWKS、角色、逐请求 session-validator port、官方 Auth0 SPA SDK 2.23 product/operator bootstrap（PKCE、memory cache、rotating refresh、callback 清理、revoke/logout）与登录/登出/失败恢复界面，以及按 user UUID + 伪名 subject 严格回绑的邮箱 resolver factory 已完成 | 真实 tenant/application、允许 URL 与 role Action；Enterprise 可用 Management API session introspection，非 Enterprise 必须另建应用侧可撤销 session ledger；两条路径都需身份目录 adapter、真实撤权、跨会话与管理员最小权限 E2E |
 | 事务邮件 | Resend | 固定 HTTPS 发送、provider 幂等、Svix HMAC、防重放、事件 parser 已完成 | 账号/预算、已验证域名、SPF/DKIM/DMARC、真实回放、合同与隐私批准 |
 | EventBrief 模型网关 | OpenRouter，固定一个支持 structured outputs 的付费模型和受限 provider policy | policy-locked adapter 已固定官方 endpoint、model/upstream allowlist、strict schema、ZDR/deny 与真实 usage/cost fail-closed | 批准具体 model/upstream、真实 strict-schema/usage/cost 样本、账号级日志策略、DPA/隐私批准 |
 | TDnet | JPX 官方付费 TDnet API | 固定官方 endpoint、cursor/revision/删除、限流与安全 PDF 证据 adapter 已完成 | 申请、合同权利、API 凭据、公开回链保存范围、staging 样本 |
@@ -30,9 +30,24 @@
   wildcard。
 - 产品库不保存邮箱。部署目录 adapter 必须以内部 user UUID 与不可逆伪名 subject 联合查询，并返回
   同时回绑两个标识的 active/verified 邮箱；禁止用 raw `sub`、客户端邮箱或仅 user ID 的弱匹配发送。
+- Auth0 的 Management API session 查询／删除 endpoint 只对 Enterprise 套餐开放。若选择 Enterprise，
+  post-login Action 必须把 `event.session.id` 写入碰撞安全的 namespaced access-token claim，后端 validator
+  用只含 `read:sessions` 的 M2M client 查询 `GET /api/v2/sessions/{id}`，并同时核对返回的 `user_id`、
+  token `sub`、允许的 client 与 session 到期时间；404／429／5xx 或 contract 异常全部 fail closed。
+- 若不选择 Enterprise，不得用“JWT 签名仍有效”冒充 session 尚未撤销。必须改用应用侧服务端 session
+  ledger：token 只携带不可猜的 session reference，逐请求查询 active/revoked 状态，登出、停用和删除立即
+  撤销；同时把 access-token TTL 降到经安全 owner 批准的短窗口。该 ledger 是新的部署组件，不能由前端
+  localStorage、Auth0 user search 或仅撤销 refresh token 替代。
+- 邮件目录不得依赖 Auth0 `GET /api/v2/users?q=...` 的即时一致性；Auth0 明确把 user search 定义为
+  eventually consistent。deployment identity directory 必须维护 internal user UUID、伪名 subject 与 Auth0
+  raw user ID 的受控映射，再以精确 user ID 读取 `email`、`email_verified`、`blocked` 并完成双标识回绑。
 
 依据：[Auth0 PKCE 官方流程](https://auth0.com/docs/api/authentication/authorization-code-flow-with-pkce/authorize-with-pkce)、
-[Refresh Token Rotation](https://dev.auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-rotation)。
+[Refresh Token Rotation](https://dev.auth0.com/docs/secure/tokens/refresh-tokens/refresh-token-rotation)、
+[Management API session 管理与套餐限制](https://dev.auth0.com/docs/manage-users/sessions/manage-user-sessions-with-auth0-management-api)、
+[单个 session 查询 contract](https://auth0.com/docs/api/management/v2/sessions/get-session)、
+[自定义 access-token claim](https://auth0.com/docs/secure/tokens/json-web-tokens/create-custom-claims)、
+[Auth0 user search 一致性说明](https://dev.auth0.com/docs/manage-users/user-search/retrieve-users-with-get-users-endpoint)。
 
 ### 2.2 Resend
 
@@ -88,7 +103,7 @@
 
 | 决定 | Owner | 当前状态 | 必须提交的证据 |
 |---|---|---|---|
-| Auth0 套餐、tenant 地域、产品/运营 application | 产品 + 身份/安全 | 待确认 | tenant 配置导出 hash、audience/role 表、撤权演练 |
+| Auth0 套餐、tenant 地域、产品/运营 application | 产品 + 身份/安全 | 待确认；必须先选择 Enterprise session API 或应用侧 session ledger | tenant 配置导出 hash、audience/role 表、session 方案、撤权演练 |
 | Resend 套餐、发件域名、数据处理条款 | 产品 + 隐私/法务 | 推荐项，待确认 | 域名验证、SPF/DKIM/DMARC、DPA/条款 approval、四类回放 artifact |
 | OpenRouter model/upstream/隐私 policy/预算 | 产品 + 模型成本 + 隐私 | 推荐项，待确认 | 固定配置、真实 usage/cost、strict schema、ZDR/deny policy artifact |
 | TDnet 权利 | 数据许可/法务 | 待申请 | 合同 approval、允许用途矩阵、到期复核日 |
@@ -100,7 +115,8 @@
 
 ## 4. 接入顺序
 
-1. 先批准 Auth0、Resend 和 OpenRouter 三个工程 provider，并建立 staging tenant/account；不触碰生产主库。
+1. 先批准 Auth0、Resend 和 OpenRouter 三个工程 provider；Auth0 必须同时确定 Enterprise session API 或
+   应用侧 session ledger 路径，再建立 staging tenant/account；不触碰生产主库。
 2. 用已完成的 Auth0 SDK bootstrap 配置 staging tenant、产品/运营 SPA client、精确允许 URL 和 role
    Action，完成刷新、产品/运营登出、撤权和跨会话 E2E；并完成 Resend 窄范围真实邮件与 OpenRouter
    单事件真实调用证据。

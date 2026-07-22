@@ -27,8 +27,8 @@ VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON='{"market-morning-reader":[
 VIBE_MARKET_MORNING_RUNTIME_ENABLED=false
 VIBE_MARKET_MORNING_RUNTIME_FACTORY=src.market_morning.production_runtime_factory:build_runtime_dependencies
 VIBE_MARKET_MORNING_PROVIDER_BUNDLE_FACTORY=deployment.market_morning_providers:build_provider_bundle
-# API 进程中的 provider 回调仍需单独提供部署侧 adapter；未配置时固定 fail closed。
-VIBE_MARKET_MORNING_EMAIL_WEBHOOK_FACTORY=deployment.market_morning:build_email_webhooks
+# Resend webhook 使用仓库内置的 Svix 验签／事件解析 factory；未配置时固定 fail closed。
+VIBE_MARKET_MORNING_EMAIL_WEBHOOK_FACTORY=src.api.market_morning_resend_webhook_factory:build_resend_webhook_adapters
 VIBE_MARKET_MORNING_RUNTIME_ROLE=all
 VIBE_MARKET_MORNING_ALLOW_FIXTURE_RUNTIME=false
 ```

@@ -41,7 +41,7 @@
 ## 下一批工程优先级
 
 1. 最新候选 revision 的受控 schema change 只读 preflight 已通过；下一步须先取得维护窗口与变更单批准、完成并验证可恢复备份、停止 Market Morning API/worker/scheduler，然后才可把远程产品主库从 `0004` 升级到 `0017`。两个专用测试库已完成 12+3 并恢复到 `0017`/33 表。
-2. 审批 `market-morning-provider-selection-proposal.md` 中的 Auth0/Resend/OpenRouter 推荐项；OIDC 后端、官方 Auth0 SPA SDK bootstrap、前端 lifecycle/产品与运营界面、Resend adapter、通用邮箱 identity resolver 与深链 signer/兑换已可直接使用，但 deployment 仍须建立真实 Auth0 tenant/application、提供 provider-backed session validator 与身份目录 adapter，并为三个外部 preflight 提供真实实现和 E2E 证据。
+2. 审批 `market-morning-provider-selection-proposal.md` 中的 Auth0/Resend/OpenRouter 推荐项；Auth0 必须先决定使用 Enterprise Management API session introspection，还是另建应用侧可撤销 session ledger。OIDC 后端、官方 Auth0 SPA SDK bootstrap、前端 lifecycle/产品与运营界面、Resend adapter、通用邮箱 identity resolver 与深链 signer/兑换已可直接使用，但 deployment 仍须建立真实 Auth0 tenant/application、提供选定路径的 provider-backed session validator 与双标识身份目录 adapter，并为三个外部 preflight 提供真实实现和 E2E 证据。
 3. TDnet/EDINET 与 calendar/market 权利 Gate 批准后，在 deployment provider bundle factory 中用 `SqlAlchemyTrackedIssuerCodeResolver`
    注入两个官方 adapter；为首批公司逐一注入 `CompanyIrApprovedFeedAdapter`、批准 URL/path 与 parser，
    并用 strict loader/adapter 注入两份日历与五项行情；先做不对外的限频、正文、订正/撤回、节假日和
