@@ -191,9 +191,10 @@ bootstrap SQL 直接导入全部通过。另于 2026-07-22 对远程专用 accep
 `docs/evidence/market-morning/mysql-acceptance-remote-retest-2026-07-22.json` 和
 `docs/evidence/market-morning/mysql-migration-remote-retest-2026-07-22.json`。这些 manifest 均不计 staging
 日；远程产品主库仍保持只读核对结果 `0004`/14 表，须在正式维护窗口备份后另行升级。
-受控 schema change CLI 的实际只读 preflight 也已通过，hash-only 证据位于
-`docs/evidence/market-morning/product-schema-preflight-rerun-2026-07-21.json`；该证据没有执行 Alembic，
-不能替代备份和产品库变更批准。
+受控 schema change CLI 已在候选 revision `bf71b387f7cc424da4125071f0a0a904ad0e83b1` 上重新完成实际只读
+preflight，hash-only 证据位于
+`docs/evidence/market-morning/product-schema-preflight-release-bf71b387-2026-07-22.json`；主库前后均为
+`0004`/14 表、`execution=null`，该证据没有执行 Alembic，不能替代备份和产品库变更批准。
 前端 341 项、Market Morning 范围 Ruff 与前端
 production build 通过。
 仓库锁定运行依赖和 `.[dev]` 测试依赖补齐后，按仓库约定排除独立 `e2e_backtest` 目录执行

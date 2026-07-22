@@ -24,14 +24,14 @@
 
 ## 当前验证基线
 
-- Market Morning 普通后端回归：直接按 `agent/tests/test_market_morning_*.py` 运行得到 `867 passed, 15 skipped`；15 项仅因普通命令未显式授权两套专用数据库写入。隔离和远程专用 MySQL 在线证据均为业务 acceptance `12/12 passed`、destructive migration `3/3 passed`；2026-07-22 最新远程 retest manifest 分别为 `mysql-acceptance-remote-retest-2026-07-22.json` 与 `mysql-migration-remote-retest-2026-07-22.json`。产品 schema change job 的实际只读 preflight 已确认主库为 `0004`/14 表，未执行 Alembic。
+- Market Morning 普通后端回归：直接按 `agent/tests/test_market_morning_*.py` 运行得到 `867 passed, 15 skipped`；15 项仅因普通命令未显式授权两套专用数据库写入。隔离和远程专用 MySQL 在线证据均为业务 acceptance `12/12 passed`、destructive migration `3/3 passed`；2026-07-22 最新远程 retest manifest 分别为 `mysql-acceptance-remote-retest-2026-07-22.json` 与 `mysql-migration-remote-retest-2026-07-22.json`。候选 revision `bf71b387f7cc424da4125071f0a0a904ad0e83b1` 上重新执行的产品 schema change 只读 preflight 已确认主库为 `0004`/14 表、目标为 `0017`，前后快照一致且 `execution=null`；证据为 `product-schema-preflight-release-bf71b387-2026-07-22.json`，SHA-256 `0949247230b1d0909150760948e70adac60a911947b8bac61d0c1b8a697a126c`。
 - SQL 交付包：`market_morning_schema_0017.sql` 已直接导入第三个 MySQL 8 空库，核对为 33 张业务表、精确 `0017` revision、`varchar(64)` 版本字段及 `utf8mb4_ja_0900_as_cs`。
 - Vibe-Trading 整仓后端：按 CI 约定排除独立 `agent/tests/e2e_backtest` 和真实 LLM 专用 `test_e2e_harness_v2.py` 后，本轮实测为 `6300 passed, 24 skipped`，无失败或错误。24 项 skip 均为已登记的 MySQL／合成因子／Tushare 前置条件，无未知 skip。CI 环境变量 Gate 通过，仅保留一条既有 `os.environ.pop()` 非阻断 warning。
 - T0 合成演练：12/12 通过，证据位于 `docs/evidence/market-morning/t0-local-synthetic-2026-07-21.json`，固定不计为 staging 日。
 - 前端：341 项测试通过，TypeScript 与 production build 通过；覆盖 product/operator lifecycle 并发初始化、官方 Auth0 SDK 配置/PKCE/memory cache/callback 清理/revoke/logout、401、初始化失败重试、邮件深链认证后兑换时序，以及 Demo 只能在 development 启用、状态变更和完整 API 代理路径。
 - 容器运行时：`docker compose --profile market-morning build market-morning-runtime` 已从干净源码真实构建成功，容器内前端 build 与哈希锁定 Python 安装均通过；镜像以 uid 1000 的非 root `vibe` 用户运行，`asyncmy` 和最终 production runtime factory 可导入。worker service 显式禁用共享 API 镜像的 `:8899/live` healthcheck；禁用态容器以 exit 2 和稳定 `market_morning_disabled` 错误码拒绝启动。容器内只读 schema probe 对产品库返回 `Market Morning database schema is not current`，对 acceptance 库返回 `ready`；清空 provider bundle factory 后正式 CLI 以稳定 `production_provider_bundle_factory_missing` 拒绝启动，未运行采集、模型或邮件任务。
 - 本地浏览器 Demo：`npm run dev:market-morning-demo` 固定启动在 `127.0.0.1:5901`；Playwright 已验证朝刊明确显示 synthetic/订正/“不足以判断”、9432 搜索添加后为 4/10、丰田研究笔记保存和邮件提醒设置保存。8 个业务 API 请求均为 200，控制台 0 error/0 warning；证据见 `browser-demo-smoke-2026-07-22.md`，固定不计为 staging 日。
-- 不可变发布候选：新增 17 项专项测试和 CI artifact；clean tree、预期/实际 revision、当前 schema、14 个固定发布源文件（含最终 production runtime factory、运行手册和两份严格证据模板）及 5 份验证输出任一缺失、未跟踪、失配或不可读都会 `blocked`。Market Morning 的计划、ADR、运行手册与隐私安全证据目录已从仓库全局 `docs/` 忽略规则中精确放行；浏览器日志、截图、CodeGraph 索引、`output/` 和本地 zip 仍明确忽略。提交前的脏工作树会被正确拒绝；CI 只能在 clean checkout 上为该提交生成通过的 manifest。输出不包含路径、Git status 原文、URL 或凭据。该 Gate 固定不计为 staging/T1 证据。
+- 不可变发布候选：新增 17 项专项测试和 CI artifact；clean tree、预期/实际 revision、当前 schema、14 个固定发布源文件（含最终 production runtime factory、运行手册和两份严格证据模板）及 5 份验证输出任一缺失、未跟踪、失配或不可读都会 `blocked`。Market Morning 的计划、ADR、运行手册与隐私安全证据目录已从仓库全局 `docs/` 忽略规则中精确放行；浏览器日志、截图、CodeGraph 索引、`output/` 和本地 zip 仍明确忽略。`release/market-morning-mvp` 上的 GitHub Actions run `29883207069` 已为 revision `bf71b387f7cc424da4125071f0a0a904ad0e83b1` 生成并上传 `status=passed`、九项检查全通过、`blocking_codes=[]` 的不可变 manifest；下载核验的 runtime schema 为 `0017_market_morning_content_reports`，CI 证据明确不计 staging/T1。输出不包含路径、Git status 原文、URL 或凭据。
 - Staging 日报生产链：新增单项 Gate artifact CLI 与单日 builder；raw probe 只进入 SHA-256，11 项 artifact 必须共享通过的 candidate、release/schema、run、刊期和 JPX calendar 链，任一失败会保留失败日报但固定不计数。相关 release/staging evidence 专项共 60 项通过；当前仍无真实 staging 日报，因此没有提前满足五日 Gate。
 - 监控部署基线：Prometheus rules、HTTPS Bearer-file scrape、Alertmanager secret-file receiver 路由和严格 monitoring drill 证据合同共 19 项专项测试通过；仓库内模板固定 `failed`，真实 receiver 尚未演练。
 - 静态检查：Market Morning 及本轮触达的 API/指数/MCP 测试范围 Ruff 通过；仓库级既有 lint 债务仍单独记录，不冒充本模块失败。
@@ -40,7 +40,7 @@
 
 ## 下一批工程优先级
 
-1. 先用受控 schema change job 执行只读 preflight；在维护窗口完成可恢复备份后，把远程产品主库从 `0004` 升级到 `0017`。两个专用测试库已完成 12+3 并恢复到 `0017`/33 表。
+1. 最新候选 revision 的受控 schema change 只读 preflight 已通过；下一步须先取得维护窗口与变更单批准、完成并验证可恢复备份、停止 Market Morning API/worker/scheduler，然后才可把远程产品主库从 `0004` 升级到 `0017`。两个专用测试库已完成 12+3 并恢复到 `0017`/33 表。
 2. 审批 `market-morning-provider-selection-proposal.md` 中的 Auth0/Resend/OpenRouter 推荐项；OIDC 后端、官方 Auth0 SPA SDK bootstrap、前端 lifecycle/产品与运营界面、Resend adapter、通用邮箱 identity resolver 与深链 signer/兑换已可直接使用，但 deployment 仍须建立真实 Auth0 tenant/application、提供 provider-backed session validator 与身份目录 adapter，并为三个外部 preflight 提供真实实现和 E2E 证据。
 3. TDnet/EDINET 与 calendar/market 权利 Gate 批准后，在 deployment provider bundle factory 中用 `SqlAlchemyTrackedIssuerCodeResolver`
    注入两个官方 adapter；为首批公司逐一注入 `CompanyIrApprovedFeedAdapter`、批准 URL/path 与 parser，
@@ -49,4 +49,4 @@
 4. 在已提供的 Alertmanager 路由基线上配置真实 secret-file receiver，完成 warning/critical/resolved、
    silence 到期和双人值班演练，再用 monitoring drill CLI 生成可供每日 `observability` Gate 引用的
    hash-only 证据。
-5. 先建立当前账号可写的远端并触发 CI，生成 `status=passed` 的不可变 release candidate manifest；当前 `origin=HKUDS/Vibe-Trading` 对登录账号只有 `READ` 权限，且账号下尚无同名 fork，因此本地分支不能直接推送。只部署通过 manifest 的 revision，并用同一 revision 完成连续 5 个真实 staging JPX 交易日，再申请 T1 签字。
+5. 当前账号的 `weinicaishi/Vibe-Trading` fork、独立开发/发布分支和不可变 release candidate CI 已建立并通过；不再要求回合 fork `main`。只部署通过 manifest 的 release revision，并用同一 revision 完成连续 5 个真实 staging JPX 交易日，再申请 T1 签字。

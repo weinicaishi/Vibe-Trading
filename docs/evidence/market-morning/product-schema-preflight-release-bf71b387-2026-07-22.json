@@ -1,0 +1,29 @@
+{
+  "after": {
+    "market_morning_table_count": 14,
+    "revision": "0004_market_morning_sources_events"
+  },
+  "automatic_downgrade_attempted": false,
+  "backup_evidence_sha256": null,
+  "before": {
+    "market_morning_table_count": 14,
+    "revision": "0004_market_morning_sources_events"
+  },
+  "change_reference_sha256": null,
+  "check_only": true,
+  "contains_backup": false,
+  "contains_credentials": false,
+  "counts_as_staging_day": false,
+  "environment": "production",
+  "execution": null,
+  "expected_source_revision": "0004_market_morning_sources_events",
+  "failure_code": null,
+  "finished_at": "2026-07-22T02:43:29.643055Z",
+  "run_id": "production-schema-change-8ae83e7d-2246-494d-84c3-fdd8a2008740",
+  "schema_version": 1,
+  "scope": "production_schema_change",
+  "started_at": "2026-07-22T02:43:29.463658Z",
+  "status": "passed",
+  "target_fingerprint": "8f8ebd7a981fca96de3f5398e4cae41e2b3b2d66539c5a9fc2ce31a9191fff86",
+  "target_revision": "0017_market_morning_content_reports"
+}
