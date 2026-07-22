@@ -538,7 +538,8 @@ Vite development 进程内存的 synthetic API，页面持续显示“デモデ�
 认证、网络和其他错误仍进入故障提示；值班人员无需通过浏览器控制台或临时脚本读取阻断原因。
 真实 MySQL 验收也已开始固化为显式 CLI：只接受名称匹配 `market_morning_acceptance*` 且与生产
 目标不同的专用数据库，并要求逐次写入确认。当前十二项真实 probe 覆盖 MySQL 8.x/UTC/utf8mb4/
-精确 revision、来源 revision/cursor、用户朝刊 generation/revision、job 写入与 `SKIP LOCKED` 领取、
+精确 revision、access-token hash session 的幂等首见／精确注销／不可复活／多 token 隔离、来源
+revision/cursor、用户朝刊 generation/revision、job 写入与 `SKIP LOCKED` 领取、
 scheduler 单活租约、publication halt 并发与审计、global run 唯一 current success、EventBrief／model
 usage 并发幂等、邮件 attempt 并发，以及 webhook 重复／乱序状态机与账户删除事务回滚；
 manifest 不保存 URL、host、凭据或 pytest 原文，并固定不计为 staging 日。2026-07-21 已在隔离的
@@ -548,9 +549,10 @@ MySQL 8.0 容器和远程 `environment=staging` 专用 acceptance 库各执行 1
 自动运行相同 probes，但 `environment=ci` 的结果不能作为 T1 staging 输入。
 
 CI 现已在上述后端、前端 build/test 和 MySQL 12+3 全部成功后生成不可变 release candidate manifest。
-Gate 要求 checkout 为 clean tree、Git revision 与 CI 预期 revision 一致、runtime schema 为 0017，且
-依赖锁、容器/compose、CI workflow、当前 migration、0017 SQL/ZIP、monitoring rules、最终 production
-runtime factory、运行手册及 monitoring/T1 严格证据模板共十四项固定发布源文件均已被 Git 跟踪并可计算
+Gate 要求 checkout 为 clean tree、Git revision 与 CI 预期 revision 一致、runtime schema 为 0018，且
+依赖锁、容器/compose、CI workflow、当前 migration、0018 SQL/ZIP、monitoring rules、最终 production
+runtime factory、主运行手册、Auth0 Post-Login Action／部署合同及 monitoring/T1 严格证据模板共十六项
+固定发布源文件均已被 Git 跟踪并可计算
 SHA-256；五份验证输出也必须完整，MySQL 两份还须通过同环境合同
 校验。输出只保留固定名称、revision、检查状态、阻断码和 hash，且固定不计为 staging/T1 证据。
 staging 部署和随后五日 evidence 必须使用该 manifest 的同一 revision，不允许重新构建或手填漂移版本。
@@ -562,8 +564,8 @@ staging 部署和随后五日 evidence 必须使用该 manifest 的同一 revisi
 
 迁移验收使用另一个默认拒绝执行的 CLI 与名称匹配
 `market_morning_migration_acceptance*` 的独立可丢弃数据库，不允许复用上述业务验收库。它要求显式
-确认 destructive reset，并分别执行 `base → 0017`、`0016 → 0017` 与
-`0017 → 0016 → 0017`，验证精确 revision、完整表集合和 0016 以前的账户／私测邀请数据保留；manifest
+确认 destructive reset，并分别执行 `base → 0018`、`0016 → 0018` 与
+`0018 → 0016 → 0018`，验证精确 revision、完整表集合和 0016 以前的账户／私测邀请数据保留；manifest
 固定 `contains_destructive_migration_evidence=true`，仍不计为 staging 日。2026-07-21 已在独立
 MySQL 8.0 可丢弃库及远程 `environment=staging` migration acceptance 库执行 3/3 passed；远程证据
 位于 `docs/evidence/market-morning/mysql-migration-remote-2026-07-21.json`。本地还直接导入了交付

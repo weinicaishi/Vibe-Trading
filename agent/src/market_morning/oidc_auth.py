@@ -164,6 +164,7 @@ class OidcSettings:
     http_timeout_seconds: float = 5.0
     clock_skew_seconds: int = 30
     access_token_max_lifetime_seconds: int = 900
+    auth_time_claim: str = "auth_time"
     admin_roles_claim: str = "roles"
 
     def __post_init__(self) -> None:
@@ -197,6 +198,8 @@ class OidcSettings:
             raise OidcConfigurationError("oidc_clock_skew_invalid")
         if not 60 <= self.access_token_max_lifetime_seconds <= 1800:
             raise OidcConfigurationError("oidc_access_token_lifetime_invalid")
+        if not _CLAIM_NAME_RE.fullmatch(self.auth_time_claim):
+            raise OidcConfigurationError("oidc_auth_time_claim_invalid")
         if not _CLAIM_NAME_RE.fullmatch(self.admin_roles_claim):
             raise OidcConfigurationError("oidc_admin_roles_claim_invalid")
 
@@ -213,6 +216,7 @@ class OidcSettings:
             http_timeout_seconds=cfg.oidc_http_timeout_seconds,
             clock_skew_seconds=cfg.oidc_clock_skew_seconds,
             access_token_max_lifetime_seconds=(cfg.oidc_access_token_max_lifetime_seconds),
+            auth_time_claim=cfg.oidc_auth_time_claim,
             admin_roles_claim=cfg.oidc_admin_roles_claim,
         )
 
@@ -417,7 +421,6 @@ class OidcTokenVerifier:
                         "iss",
                         "aud",
                         "sub",
-                        "auth_time",
                     ]
                 },
             )
@@ -427,20 +430,35 @@ class OidcTokenVerifier:
         audience = claims.get("aud")
         issued_at = claims.get("iat")
         expires_at = claims.get("exp")
-        auth_time = claims.get("auth_time")
+        auth_time = claims.get(self.settings.auth_time_claim)
+        audience_matches = audience == self.settings.audience or (
+            isinstance(audience, list)
+            and 1 <= len(audience) <= 16
+            and self.settings.audience in audience
+            and all(
+                isinstance(item, str)
+                and item
+                and len(item) <= 255
+                and item == item.strip()
+                and not _has_control(item)
+                for item in audience
+            )
+        )
         if (
             not isinstance(subject, str)
             or not subject
             or len(subject) > 255
             or subject != subject.strip()
             or _has_control(subject)
-            or audience != self.settings.audience
+            or not audience_matches
             or isinstance(issued_at, bool)
             or not isinstance(issued_at, (int, float))
             or isinstance(expires_at, bool)
             or not isinstance(expires_at, (int, float))
-            or isinstance(auth_time, bool)
-            or not isinstance(auth_time, (int, float))
+            or (
+                auth_time is not None
+                and (isinstance(auth_time, bool) or not isinstance(auth_time, (int, float)))
+            )
         ):
             raise OidcTokenRejected("oidc_claims_invalid")
         if (
@@ -448,15 +466,16 @@ class OidcTokenVerifier:
             or float(expires_at) - float(issued_at) > self.settings.access_token_max_lifetime_seconds
         ):
             raise OidcTokenRejected("oidc_access_token_lifetime_invalid")
-        try:
-            authenticated_at = datetime.fromtimestamp(
-                auth_time,
-                tz=timezone.utc,
-            )
-        except (OverflowError, OSError, ValueError) as error:
-            raise OidcTokenRejected("oidc_claims_invalid") from error
-        if authenticated_at > datetime.now(timezone.utc) + timedelta(seconds=self.settings.clock_skew_seconds):
-            raise OidcTokenRejected("oidc_claims_invalid")
+        if auth_time is not None:
+            try:
+                authenticated_at = datetime.fromtimestamp(
+                    auth_time,
+                    tz=timezone.utc,
+                )
+            except (OverflowError, OSError, ValueError) as error:
+                raise OidcTokenRejected("oidc_claims_invalid") from error
+            if authenticated_at > datetime.now(timezone.utc) + timedelta(seconds=self.settings.clock_skew_seconds):
+                raise OidcTokenRejected("oidc_claims_invalid")
         try:
             immutable_claims = _freeze_claim(claims)
             session_result = self._session_validator(token, immutable_claims)
@@ -471,8 +490,11 @@ class OidcTokenVerifier:
         return immutable_claims
 
 
-def _authenticated_at(claims: Mapping[str, Any]) -> datetime:
-    return datetime.fromtimestamp(float(claims["auth_time"]), tz=timezone.utc)
+def _authenticated_at(claims: Mapping[str, Any], *, claim_name: str) -> datetime | None:
+    value = claims.get(claim_name)
+    if value is None:
+        return None
+    return datetime.fromtimestamp(float(value), tz=timezone.utc)
 
 
 def build_product_auth_adapter(
@@ -501,7 +523,10 @@ def build_product_auth_adapter(
                 resolved_settings.issuer,
                 str(claims["sub"]),
             ),
-            authenticated_at=_authenticated_at(claims),
+            authenticated_at=_authenticated_at(
+                claims,
+                claim_name=resolved_settings.auth_time_claim,
+            ),
         )
 
     async def _revoke(token: str) -> None:
@@ -510,7 +535,11 @@ def build_product_auth_adapter(
             raise OidcProviderUnavailable("oidc_session_revocation_unavailable")
         try:
             claims = await verifier.verify_claims(token)
-            result = revoke_claims(claims, reason="logout")
+            revoke_token = getattr(validator, "revoke_token", None)
+            if callable(revoke_token):
+                result = revoke_token(token, claims, reason="logout")
+            else:
+                result = revoke_claims(claims, reason="logout")
             if inspect.isawaitable(result):
                 result = await result
         except OidcTokenRejected as error:
@@ -596,7 +625,11 @@ def build_admin_auth_adapter(
             raise OidcProviderUnavailable("oidc_session_revocation_unavailable")
         try:
             claims = await verifier.verify_claims(token)
-            result = revoke_claims(claims, reason="operator_logout")
+            revoke_token = getattr(validator, "revoke_token", None)
+            if callable(revoke_token):
+                result = revoke_token(token, claims, reason="operator_logout")
+            else:
+                result = revoke_claims(claims, reason="operator_logout")
             if inspect.isawaitable(result):
                 result = await result
         except OidcTokenRejected as error:
@@ -646,6 +679,7 @@ def builtin_oidc_preflight_checks(config: Any) -> tuple[str, ...]:
                 http_timeout_seconds=config.oidc_http_timeout_seconds,
                 clock_skew_seconds=config.oidc_clock_skew_seconds,
                 access_token_max_lifetime_seconds=(config.oidc_access_token_max_lifetime_seconds),
+                auth_time_claim=config.oidc_auth_time_claim,
                 admin_roles_claim=config.oidc_admin_roles_claim,
             )
         except OidcConfigurationError:

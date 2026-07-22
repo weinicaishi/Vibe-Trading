@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+import hashlib
 import os
 from uuid import uuid4
 
@@ -47,6 +48,7 @@ from src.market_morning.models import (
     UserConsent,
 )
 from src.market_morning.session_ledger import (
+    ACCESS_TOKEN_SESSION_REFERENCE,
     ApplicationSessionValidator,
     pseudonymous_oidc_subject_reference,
 )
@@ -131,10 +133,11 @@ def _require_confirmed_acceptance_target() -> None:
 
 def test_mysql_schema_and_session_contract() -> None:
     _require_confirmed_acceptance_target()
-    session_reference = f"mysql-acceptance-session-{uuid4()}"
     issuer = "https://identity.acceptance.example/market-morning"
     subject = f"acceptance-subject-{uuid4()}"
     external_subject = pseudonymous_oidc_subject_reference(issuer, subject)
+    first_token = f"mysql-acceptance-token-{uuid4()}"
+    second_token = f"mysql-acceptance-token-{uuid4()}"
 
     async def verify():
         await reset_database_state()
@@ -177,38 +180,46 @@ def test_mysql_schema_and_session_contract() -> None:
                     frozenset(str(name) for name in table_names),
                 )
             factory = get_session_factory()
-            validator = ApplicationSessionValidator(claim_name="sid", session_factory=factory)
+            validator = ApplicationSessionValidator(
+                claim_name=ACCESS_TOKEN_SESSION_REFERENCE,
+                session_factory=factory,
+            )
             now = int(datetime.now(timezone.utc).timestamp())
             claims = {
                 "iss": issuer,
                 "sub": subject,
-                "sid": session_reference,
                 "iat": now - 5,
                 "exp": now + 895,
             }
             first, second = await asyncio.gather(
-                validator("token-one", claims),
-                validator("token-two", claims),
+                validator(first_token, claims),
+                validator(first_token, claims),
             )
+            independent_token = await validator(second_token, claims)
             async with factory() as session:
-                row_count = int(
+                rows = tuple(
                     (
                         await session.execute(
-                            select(func.count())
-                            .select_from(ApplicationSessionRecord)
-                            .where(ApplicationSessionRecord.external_subject == external_subject)
+                            select(ApplicationSessionRecord).where(
+                                ApplicationSessionRecord.external_subject == external_subject
+                            )
                         )
-                    ).scalar_one()
+                    )
+                    .scalars()
+                    .all()
                 )
-            revoked = await validator.revoke_claims(claims, reason="logout")
-            rejected_after_revocation = not await validator("token-three", claims)
+            revoked = await validator.revoke_token(first_token, claims, reason="logout")
+            rejected_after_revocation = not await validator(first_token, claims)
+            independent_token_remains_active = await validator(second_token, claims)
             return (
                 database_contract,
                 first,
                 second,
-                row_count,
+                independent_token,
+                rows,
                 revoked,
                 rejected_after_revocation,
+                independent_token_remains_active,
             )
         finally:
             factory = get_session_factory()
@@ -220,7 +231,16 @@ def test_mysql_schema_and_session_contract() -> None:
                 )
             await reset_database_state()
 
-    contract, first, second, row_count, revoked, rejected_after_revocation = asyncio.run(verify())
+    (
+        contract,
+        first,
+        second,
+        independent_token,
+        rows,
+        revoked,
+        rejected_after_revocation,
+        independent_token_remains_active,
+    ) = asyncio.run(verify())
     (
         version,
         session_timezone,
@@ -238,9 +258,23 @@ def test_mysql_schema_and_session_contract() -> None:
     assert revision == EXPECTED_MARKET_MORNING_SCHEMA_REVISION
     assert table_names == frozenset(Base.metadata.tables)
     assert first is True and second is True
-    assert row_count == 1
+    assert independent_token is True
+    assert len(rows) == 2
+    assert {row.issuer_sha256 for row in rows} == {
+        hashlib.sha256(issuer.encode("utf-8")).hexdigest()
+    }
+    assert {row.session_reference_sha256 for row in rows} == {
+        hashlib.sha256(first_token.encode("utf-8")).hexdigest(),
+        hashlib.sha256(second_token.encode("utf-8")).hexdigest(),
+    }
+    serialized_rows = repr(tuple(row.__dict__ for row in rows))
+    assert issuer not in serialized_rows
+    assert subject not in serialized_rows
+    assert first_token not in serialized_rows
+    assert second_token not in serialized_rows
     assert revoked is True
     assert rejected_after_revocation is True
+    assert independent_token_remains_active is True
 
 
 def test_mysql_job_enqueue_is_concurrent_and_idempotent() -> None:

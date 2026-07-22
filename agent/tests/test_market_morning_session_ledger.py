@@ -112,6 +112,25 @@ def test_first_valid_token_is_provisioned_without_persisting_raw_identifiers() -
     assert "raw.jwt.token" not in rendered
 
 
+def test_token_instance_mode_hashes_access_token_without_requiring_session_claim() -> None:
+    row = SimpleNamespace(
+        status="active",
+        external_subject=pseudonymous_oidc_subject_reference(ISSUER, SUBJECT),
+    )
+    session = _Session(_Result(), _Result(scalar=row))
+    validator = ApplicationSessionValidator(
+        claim_name="__access_token_sha256__",
+        session_factory=_Factory(session),
+    )
+    claims = {key: value for key, value in _claims().items() if key != "sid"}
+
+    assert asyncio.run(validator("raw.jwt.token", claims)) is True
+
+    rendered = repr(session.statements[0].compile(dialect=mysql.dialect()).params)
+    assert hashlib.sha256(b"raw.jwt.token").hexdigest() in rendered
+    assert "raw.jwt.token" not in rendered
+
+
 def test_revoked_or_cross_subject_session_is_rejected_and_never_reactivated() -> None:
     for row in (
         SimpleNamespace(

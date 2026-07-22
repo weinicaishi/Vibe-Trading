@@ -80,7 +80,8 @@ MYSQL_ACCEPTANCE_SCENARIOS = (
         scenario_id="mysql_schema_and_session",
         name="MySQL schema 与 session contract",
         expected=(
-            "真实 MySQL 为 8.x、连接 session 使用 UTC/utf8mb4、Alembic revision 精确为当前版本，且 OIDC session 并发首见、撤销与拒绝链路成立。"
+            "真实 MySQL 为 8.x、连接 session 使用 UTC/utf8mb4、Alembic revision 精确为当前版本；"
+            "access-token hash session 并发首见幂等、原文不落库、精确注销后不可复活，且其他 token 保持有效。"
         ),
         pytest_node_ids=("agent/tests/test_market_morning_mysql_live.py::test_mysql_schema_and_session_contract",),
     ),

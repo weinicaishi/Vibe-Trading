@@ -21,7 +21,9 @@ VIBE_MARKET_MORNING_OIDC_JWKS_URL=https://identity.example.com/market-morning/jw
 VIBE_MARKET_MORNING_OIDC_AUDIENCE=market-morning-api
 VIBE_MARKET_MORNING_OIDC_ALGORITHM=RS256
 VIBE_MARKET_MORNING_OIDC_SESSION_VALIDATOR_FACTORY=deployment.identity:build_session_validator
-VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM=roles
+VIBE_MARKET_MORNING_OIDC_SESSION_CLAIM=__access_token_sha256__
+VIBE_MARKET_MORNING_OIDC_AUTH_TIME_CLAIM=https://market-morning.invalid/claims/auth-time
+VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM=https://market-morning.invalid/claims/roles
 VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON='{"market-morning-reader":["operations.read"],"market-morning-reviewer":["content.review"]}'
 # 独立进程仍需二次显式启用；内置 factory 负责最终装配，部署侧只提供已审 provider bundle。
 VIBE_MARKET_MORNING_RUNTIME_ENABLED=false
@@ -943,7 +945,8 @@ PYTHONPATH=agent .venv/bin/python -m src.market_morning.mysql_acceptance_cli \
 ```
 
 已安装项目也可运行 `vibe-trading-market-morning-mysql-acceptance`。当前目录包含十二项 probe：MySQL
-8.x/UTC/utf8mb4/精确 schema、来源 revision/cursor、用户朝刊 generation/revision、durable job 写入
+8.x/UTC/utf8mb4/精确 schema、access-token hash session 的并发首见幂等／原文不落库／精确注销／
+不可复活与多 token 隔离、来源 revision/cursor、用户朝刊 generation/revision、durable job 写入
 与 `SKIP LOCKED` 领取、scheduler 单活租约、publication halt 并发审计、global run 唯一 current
 success、EventBrief／model usage 并发幂等、邮件 attempt 并发、webhook 重复／乱序状态机，以及
 账户删除 SQL/审计的真实事务执行。写入 probe 使用随机专用键并在 `finally` 精确清理；账户删除 probe 整体回滚。证据只
@@ -951,7 +954,7 @@ success、EventBrief／model usage 并发幂等、邮件 attempt 并发、webhoo
 且固定 `counts_as_staging_day=false`。
 
 该 runner 明确标记 `contains_destructive_migration_evidence=false`：它要求数据库已迁移到 head，
-但不创建／删除 database，也不替代下方 `0001 -> 0017`、`0016 -> 0017`、downgrade 或其余真实
+但不创建／删除 database，也不替代下方 `0001 -> 0018`、`0016 -> 0018`、downgrade 或其余真实
 并发场景。专用 MySQL 未提供时，十二项 live test 只会 skip，不能记为验收通过。
 
 2026-07-21 的隔离 MySQL 8.0 工程演练为 12/12 passed。领取任务使用两阶段锁定：先无锁读取最多
@@ -959,6 +962,12 @@ success、EventBrief／model usage 并发幂等、邮件 attempt 并发、webhoo
 `FOR UPDATE SKIP LOCKED`，避免 InnoDB filesort 扫描把锁扩大到整个 ready queue。CI 也会为每次
 提交创建两套临时库、执行相同 12+3 probes，并上传 hash-only artifact；CI manifest 使用
 `environment=ci`，不能冒充 T1 staging 证据。
+
+2026-07-23 又对专用远程 MySQL 8 acceptance 库执行 12/12 retest；其中 schema/session probe 已按
+Alpha A 的真实 Auth0 配置改为 access-token-instance hash 模式，并验证同一 token 并发首见只生成
+一行、不同 token 相互隔离、精确注销后原 token 不可复活、另一 token 仍有效，且数据库行不含
+issuer、subject 或 access token 原文。该报告仍固定 `counts_as_staging_day=false`，不能计入连续五日
+Staging 或 T1 发布证据。
 
 同日两个 global run 并发发布的远程验收还验证了 generated unique key 的逐行约束行为：repository
 必须先 flush 旧 current run 的 demotion，再 promotion 新 run；否则 ORM 同批更新顺序可能产生瞬时
@@ -1038,7 +1047,8 @@ CI 在普通后端测试、前端 build/test、真实 MySQL 12/12 acceptance 和
 40–64 位 Git revision：
 
 - clean worktree，以及 `requirements-lock.txt`、`frontend/package-lock.json`、容器定义、CI workflow、
-  当前 migration、0017 SQL/ZIP 和 monitoring rules 等固定发布源文件的 SHA-256；
+  当前 migration、0018 SQL/ZIP、Auth0 Post-Login Action／部署合同和 monitoring rules 等十六项固定
+  发布源文件的 SHA-256；
 - 后端测试、前端 build、前端测试、MySQL acceptance 与 migration rehearsal 五份输出的 SHA-256；
 - 当前 runtime schema `0018_market_morning_auth_sessions`。
 

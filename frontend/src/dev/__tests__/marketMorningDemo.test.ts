@@ -102,6 +102,34 @@ describe("Market Morning local browser demo", () => {
   it("keeps every browser-facing Market Morning API route behind the dev proxy", () => {
     const pattern = new RegExp(MARKET_MORNING_DEV_API_PROXY_PATTERN);
 
+    expect(
+      pattern.test("/market-morning/_internal/deployment-preflight"),
+    ).toBe(true);
+    expect(
+      pattern.test("/market-morning/_internal/operations/summary?hours=24"),
+    ).toBe(true);
+    expect(
+      pattern.test("/market-morning/_internal/content-reports?report_status=pending"),
+    ).toBe(true);
+    expect(
+      pattern.test("/market-morning/_internal/content-reports/report-1/review"),
+    ).toBe(true);
+    expect(
+      pattern.test("/market-morning/_internal/issuer-aliases?review_status=pending"),
+    ).toBe(true);
+    expect(
+      pattern.test("/market-morning/_internal/issuer-aliases/alias-1/review"),
+    ).toBe(true);
+    expect(
+      pattern.test(
+        "/market-morning/_internal/event-merge-candidates?review_status=pending",
+      ),
+    ).toBe(true);
+    expect(
+      pattern.test(
+        "/market-morning/_internal/event-merge-candidates/candidate-1/review",
+      ),
+    ).toBe(true);
     expect(pattern.test("/market-morning/delivery-links/redeem")).toBe(true);
     expect(
       pattern.test(

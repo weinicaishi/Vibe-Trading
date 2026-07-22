@@ -34,6 +34,7 @@ _OPERATOR_PERMISSIONS = frozenset(
     }
 )
 _PROVIDER_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+_REJECTION_CODE_RE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _MAX_BEARER_LENGTH = 8192
 _LEGACY_ACTOR_REFERENCE = "vibe-api-key-operator"
 _bearer = HTTPBearer(auto_error=False)
@@ -136,6 +137,12 @@ def _unauthorized() -> HTTPException:
     )
 
 
+def _stable_rejection_code(value: object) -> str:
+    if isinstance(value, str) and _REJECTION_CODE_RE.fullmatch(value):
+        return value
+    return "admin_auth_rejected"
+
+
 async def _verified_operator(
     request: Request,
     credentials: HTTPAuthorizationCredentials | None,
@@ -172,6 +179,11 @@ async def _verified_operator(
     try:
         operator = await adapter.verify_bearer(token)
     except MarketMorningAdminAuthenticationRejected as error:
+        logger.warning(
+            "Market Morning operator authentication rejected: provider=%s rejection_code=%s",
+            adapter.provider,
+            _stable_rejection_code(error.error_code),
+        )
         raise _unauthorized() from error
     except Exception as error:
         logger.warning(

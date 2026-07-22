@@ -26,6 +26,8 @@ from src.market_morning.models import (
 
 BUILTIN_SESSION_VALIDATOR_FACTORY = "src.market_morning.session_ledger:build_session_validator"
 _MAX_SESSION_REFERENCE_LENGTH = 512
+_MAX_ACCESS_TOKEN_LENGTH = 8192
+ACCESS_TOKEN_SESSION_REFERENCE = "__access_token_sha256__"
 
 
 class SessionLedgerConfigurationError(RuntimeError):
@@ -62,10 +64,18 @@ def _utc_naive_timestamp(value: Any) -> datetime:
         raise SessionLedgerConfigurationError("oidc_session_claim_invalid") from error
 
 
-def _identity(claims: Mapping[str, Any], *, claim_name: str) -> tuple[str, str, str, datetime, datetime]:
+def _identity(
+    claims: Mapping[str, Any],
+    *,
+    claim_name: str,
+    access_token: str | None = None,
+) -> tuple[str, str, str, datetime, datetime]:
     issuer = _safe_claim(claims.get("iss"), maximum=2048)
     subject = _safe_claim(claims.get("sub"), maximum=255)
-    session_reference = _safe_claim(claims.get(claim_name), maximum=_MAX_SESSION_REFERENCE_LENGTH)
+    if claim_name == ACCESS_TOKEN_SESSION_REFERENCE:
+        session_reference = _safe_claim(access_token, maximum=_MAX_ACCESS_TOKEN_LENGTH)
+    else:
+        session_reference = _safe_claim(claims.get(claim_name), maximum=_MAX_SESSION_REFERENCE_LENGTH)
     return (
         _sha256(issuer),
         _sha256(session_reference),
@@ -130,7 +140,9 @@ class ApplicationSessionValidator:
 
     async def __call__(self, _token: str, claims: Mapping[str, Any]) -> bool:
         issuer_hash, session_hash, external_subject, issued_at, expires_at = _identity(
-            claims, claim_name=self.claim_name
+            claims,
+            claim_name=self.claim_name,
+            access_token=_token,
         )
         now = utc_now_naive()
         statement = mysql_insert(ApplicationSessionRecord).values(
@@ -183,6 +195,39 @@ class ApplicationSessionValidator:
             )
         return int(result.rowcount or 0) == 1
 
+    async def revoke_token(
+        self,
+        token: str,
+        claims: Mapping[str, Any],
+        *,
+        reason: str = "logout",
+    ) -> bool:
+        if self.claim_name != ACCESS_TOKEN_SESSION_REFERENCE:
+            return await self.revoke_claims(claims, reason=reason)
+        issuer_hash, session_hash, external_subject, _, _ = _identity(
+            claims,
+            claim_name=self.claim_name,
+            access_token=token,
+        )
+        now = utc_now_naive()
+        async with self.session_factory.begin() as session:
+            result = await session.execute(
+                update(ApplicationSessionRecord)
+                .where(
+                    ApplicationSessionRecord.issuer_sha256 == issuer_hash,
+                    ApplicationSessionRecord.session_reference_sha256 == session_hash,
+                    ApplicationSessionRecord.external_subject == external_subject,
+                    ApplicationSessionRecord.status == "active",
+                )
+                .values(
+                    status="revoked",
+                    revoked_at=now,
+                    revocation_reason=reason,
+                    updated_at=now,
+                )
+            )
+        return int(result.rowcount or 0) == 1
+
 
 def build_session_validator() -> ApplicationSessionValidator:
     config = get_env_config().market_morning
@@ -190,6 +235,7 @@ def build_session_validator() -> ApplicationSessionValidator:
 
 
 __all__ = [
+    "ACCESS_TOKEN_SESSION_REFERENCE",
     "ApplicationSessionValidator",
     "BUILTIN_SESSION_VALIDATOR_FACTORY",
     "SessionLedgerConfigurationError",

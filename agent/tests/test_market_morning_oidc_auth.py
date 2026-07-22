@@ -6,6 +6,7 @@ import asyncio
 import json
 import sys
 import time
+from dataclasses import fields
 from types import SimpleNamespace
 
 import jwt
@@ -16,6 +17,7 @@ ISSUER = "https://identity.example.com/market-morning"
 JWKS_URL = "https://identity.example.com/market-morning/jwks"
 AUDIENCE = "market-morning-api"
 SUBJECT = "private-provider-subject-17"
+AUTH_TIME_CLAIM = "https://market-morning.invalid/claims/auth-time"
 
 
 def _key():
@@ -96,9 +98,7 @@ def test_product_adapter_verifies_signature_claims_and_returns_pseudonym() -> No
     "claims",
     [
         _claims(aud="another-api"),
-        _claims(aud=[AUDIENCE, "another-api"]),
         _claims(exp=int(time.time()) - 300),
-        {key: value for key, value in _claims().items() if key != "auth_time"},
         _claims(auth_time=True),
     ],
 )
@@ -119,6 +119,81 @@ def test_product_adapter_rejects_invalid_required_claims(claims) -> None:
 
     with pytest.raises(MarketMorningAuthenticationRejected):
         asyncio.run(adapter.verify_bearer(_token(private_key, claims=claims)))
+
+
+def test_product_adapter_accepts_standard_multi_audience_claim() -> None:
+    from src.market_morning.oidc_auth import build_product_auth_adapter
+
+    private_key = _key()
+
+    async def fetch():
+        return {"keys": [_jwk(private_key, kid="key-1")]}
+
+    adapter = build_product_auth_adapter(
+        settings=_settings(),
+        session_validator=_active_session,
+        jwks_fetcher=fetch,
+    )
+
+    identity = asyncio.run(
+        adapter.verify_bearer(
+            _token(
+                private_key,
+                claims=_claims(aud=[AUDIENCE, "https://identity.example.com/userinfo"]),
+            )
+        )
+    )
+
+    assert identity.external_subject.startswith("oidc:")
+
+
+def test_product_adapter_allows_normal_access_without_auth_time() -> None:
+    from src.market_morning.oidc_auth import build_product_auth_adapter
+
+    private_key = _key()
+
+    async def fetch():
+        return {"keys": [_jwk(private_key, kid="key-1")]}
+
+    claims = {key: value for key, value in _claims().items() if key != "auth_time"}
+    adapter = build_product_auth_adapter(
+        settings=_settings(),
+        session_validator=_active_session,
+        jwks_fetcher=fetch,
+    )
+
+    identity = asyncio.run(adapter.verify_bearer(_token(private_key, claims=claims)))
+
+    assert identity.authenticated_at is None
+
+
+def test_product_adapter_reads_namespaced_auth_time_claim() -> None:
+    from src.market_morning.oidc_auth import OidcSettings, build_product_auth_adapter
+
+    private_key = _key()
+
+    async def fetch():
+        return {"keys": [_jwk(private_key, kid="key-1")]}
+
+    claims = _claims()
+    claims[AUTH_TIME_CLAIM] = claims.pop("auth_time")
+    settings = OidcSettings(
+        provider="test-oidc",
+        issuer=ISSUER,
+        jwks_url=JWKS_URL,
+        audience=AUDIENCE,
+        auth_time_claim=AUTH_TIME_CLAIM,
+    )
+    adapter = build_product_auth_adapter(
+        settings=settings,
+        session_validator=_active_session,
+        jwks_fetcher=fetch,
+    )
+
+    identity = asyncio.run(adapter.verify_bearer(_token(private_key, claims=claims)))
+
+    assert identity.authenticated_at is not None
+    assert int(identity.authenticated_at.timestamp()) == claims[AUTH_TIME_CLAIM]
 
 
 def test_algorithm_confusion_is_rejected_before_jwks_fetch() -> None:
@@ -303,6 +378,44 @@ def test_adapter_revokes_the_verified_application_session() -> None:
     assert validator.revoked == [("provider-session-17", "logout")]
 
 
+def test_adapter_prefers_token_instance_revocation_when_supported() -> None:
+    from src.market_morning.oidc_auth import build_product_auth_adapter
+
+    private_key = _key()
+
+    async def fetch():
+        return {"keys": [_jwk(private_key, kid="key-1")]}
+
+    class Validator:
+        def __init__(self):
+            self.revoked_tokens = []
+            self.revoked_claims = []
+
+        async def __call__(self, _token, _claims):
+            return True
+
+        async def revoke_token(self, token, claims, *, reason):
+            self.revoked_tokens.append((token, claims["sub"], reason))
+            return True
+
+        async def revoke_claims(self, claims, *, reason):
+            self.revoked_claims.append((claims["sub"], reason))
+            return True
+
+    validator = Validator()
+    token = _token(private_key)
+    adapter = build_product_auth_adapter(
+        settings=_settings(),
+        session_validator=validator,
+        jwks_fetcher=fetch,
+    )
+
+    asyncio.run(adapter.revoke_bearer(token))
+
+    assert validator.revoked_tokens == [(token, SUBJECT, "logout")]
+    assert validator.revoked_claims == []
+
+
 def test_admin_roles_map_only_to_explicit_least_privilege_permissions() -> None:
     from src.api.market_morning_admin_auth import (
         MarketMorningAdminAuthenticationRejected,
@@ -361,6 +474,12 @@ def test_role_mapping_and_endpoint_configuration_fail_closed() -> None:
         )
     with pytest.raises(OidcConfigurationError):
         parse_admin_role_permissions(json.dumps({"admin": ["root.everything"]}))
+
+
+def test_oidc_settings_expose_configurable_auth_time_claim() -> None:
+    from src.market_morning.oidc_auth import OidcSettings
+
+    assert "auth_time_claim" in {field.name for field in fields(OidcSettings)}
 
 
 def test_builtin_factories_load_required_session_validator_and_role_mapping(

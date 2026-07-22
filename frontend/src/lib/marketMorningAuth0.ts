@@ -115,6 +115,10 @@ function authenticationRequired(error: unknown): boolean {
   ].includes(authErrorCode(error) ?? "");
 }
 
+function reportDevelopmentDiagnostic(code: string): void {
+  if (import.meta.env.DEV) console.info(`[market-morning-auth] ${code}`);
+}
+
 function callbackResponsePresent(search: string): boolean {
   const query = new URLSearchParams(search);
   const hasState = query.has("state");
@@ -180,7 +184,10 @@ class MarketMorningAuth0Adapter implements MarketMorningAuthLifecycleAdapter {
   async getAccessToken(): Promise<string | null> {
     const client = this.requireClient();
     try {
-      if (!(await client.isAuthenticated())) return null;
+      if (!(await client.isAuthenticated())) {
+        reportDevelopmentDiagnostic("not_authenticated");
+        return null;
+      }
       return await client.getTokenSilently({
         authorizationParams: {
           audience: this.config.audience,
@@ -188,7 +195,12 @@ class MarketMorningAuth0Adapter implements MarketMorningAuthLifecycleAdapter {
         },
       });
     } catch (error) {
-      if (authenticationRequired(error)) return null;
+      if (authenticationRequired(error)) {
+        reportDevelopmentDiagnostic(
+          `token_unavailable:${authErrorCode(error) ?? "authentication_required"}`,
+        );
+        return null;
+      }
       throw new MarketMorningFrontendAuthError();
     }
   }

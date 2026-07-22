@@ -184,8 +184,10 @@ def test_operator_logout_revokes_the_exact_verified_bearer(monkeypatch) -> None:
     assert TOKEN not in response.text
 
 
-def test_operator_rejection_and_provider_outage_are_sanitized(monkeypatch) -> None:
+def test_operator_rejection_and_provider_outage_are_sanitized(monkeypatch, caplog) -> None:
     from src.api import market_morning_admin_auth as admin_auth
+
+    caplog.set_level("INFO", logger=admin_auth.__name__)
 
     async def reject(_token: str):
         raise admin_auth.MarketMorningAdminAuthenticationRejected("jwt_signature_invalid")
@@ -201,6 +203,29 @@ def test_operator_rejection_and_provider_outage_are_sanitized(monkeypatch) -> No
     )
     assert rejected.status_code == 401
     assert "jwt_signature_invalid" not in rejected.text
+    assert "rejection_code=jwt_signature_invalid" in caplog.text
+    assert TOKEN not in caplog.text
+
+    caplog.clear()
+
+    async def reject_with_unsafe_code(_token: str):
+        raise admin_auth.MarketMorningAdminAuthenticationRejected(
+            "provider-secret-value\nforged-log-line"
+        )
+
+    admin_auth.clear_admin_auth_adapter_cache()
+    _install_factory(
+        monkeypatch,
+        admin_auth.MarketMorningAdminAuthAdapter("test-oidc", reject_with_unsafe_code),
+    )
+    unsafe_rejection = client.get(
+        "/read",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    )
+    assert unsafe_rejection.status_code == 401
+    assert "rejection_code=admin_auth_rejected" in caplog.text
+    assert "provider-secret-value" not in caplog.text
+    assert "forged-log-line" not in caplog.text
 
     async def unavailable(_token: str):
         raise RuntimeError("provider-host-and-secret-must-not-escape")

@@ -21,6 +21,8 @@ REQUIRED_SOURCE_ARTIFACTS: Mapping[str, str] = {
     "container_image_definition": "Dockerfile",
     "frontend_dependency_lock": "frontend/package-lock.json",
     "market_morning_ci_workflow": ".github/workflows/test.yml",
+    "market_morning_auth0_post_login_action": "deploy/auth0/market-morning-post-login.js",
+    "market_morning_auth0_runbook": "deploy/auth0/README.md",
     "market_morning_migration_head": ("agent/migrations/market_morning/versions/0018_market_morning_auth_sessions.py"),
     "market_morning_mysql_bundle": ("database/market-morning/mysql/market_morning_mysql_0018.zip"),
     "market_morning_mysql_schema": ("database/market-morning/mysql/market_morning_schema_0018.sql"),

@@ -267,6 +267,13 @@ def test_required_release_source_artifacts_exist() -> None:
     assert missing == []
 
 
+def test_required_release_source_artifacts_pin_auth0_deployment_contract() -> None:
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_auth0_post_login_action"] == (
+        "deploy/auth0/market-morning-post-login.js"
+    )
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_auth0_runbook"] == "deploy/auth0/README.md"
+
+
 def test_release_candidate_console_script_is_packaged() -> None:
     project = Path("pyproject.toml").read_text(encoding="utf-8")
 

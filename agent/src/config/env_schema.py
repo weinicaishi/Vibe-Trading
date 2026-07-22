@@ -353,6 +353,11 @@ class MarketMorningConfig(_EnvBase):
         ge=60,
         le=1800,
     )
+    oidc_auth_time_claim: str = Field(
+        alias="VIBE_MARKET_MORNING_OIDC_AUTH_TIME_CLAIM",
+        default="auth_time",
+        max_length=128,
+    )
     oidc_admin_roles_claim: str = Field(
         alias="VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM",
         default="roles",

@@ -260,7 +260,8 @@ PYTHONPATH=agent .venv/bin/python -m src.market_morning.rehearsal_cli \
 真实 MySQL 的首批验收使用 `vibe-trading-market-morning-mysql-acceptance`，只能指向名称匹配
 `market_morning_acceptance*` 的专用数据库并显式确认写入。manifest 固定为
 `scope=real_mysql_acceptance`、`counts_as_staging_day=false`，且不会保存连接 URL 或 pytest 原文。
-当前十二项覆盖 schema/session、来源 revision/cursor、用户朝刊版本、job 写入和 `SKIP LOCKED`
+当前十二项覆盖 schema/session（包括 access-token hash 的原文不落库、精确注销、不可复活与多 token
+隔离）、来源 revision/cursor、用户朝刊版本、job 写入和 `SKIP LOCKED`
 领取、scheduler 租约、publication halt 并发审计、global run 唯一 current success、EventBrief 与
 model usage 幂等、邮件 attempt 并发、webhook 重复／乱序和删除事务；它尚不包含真实迁移／
 downgrade 证据，因此即使十二项通过也不能单独解除下方 MySQL/T1 Gate。
@@ -269,12 +270,12 @@ downgrade 证据，因此即使十二项通过也不能单独解除下方 MySQL/
 `vibe-trading-market-morning-mysql-migration-rehearsal` 生成。它只接受名称匹配
 `market_morning_migration_acceptance*` 的可丢弃数据库，拒绝普通 acceptance／生产库，并要求
 `--confirm-destructive-reset-of-dedicated-database`。三项场景覆盖空库到 head、0016 数据升级到
-0017，以及 0017 降级 0016 后再升级；该报告固定
+0018，以及 0018 降级 0016 后再升级；该报告固定
 `contains_destructive_migration_evidence=true`、`counts_as_staging_day=false`。未实际运行并获得
 3/3 passed 前，迁移 Gate 保持未完成。2026-07-21 本地隔离 MySQL 8 与远程专用验收目标均已得到
 12/12 + 3/3；远程 hash-only 证据位于
 `mysql-acceptance-remote-2026-07-21.json`、`mysql-migration-remote-2026-07-21.json`。两个测试库均已
-恢复到 `0017`/33 表；生产主库仍为 `0004`/14 表，禁止在无备份、维护窗口和显式变更批准时升级。
+恢复到 `0018`/34 表；生产主库仍为 `0004`/14 表，禁止在无备份、维护窗口和显式变更批准时升级。
 
 ### 7.3 产品主库受控升级
 

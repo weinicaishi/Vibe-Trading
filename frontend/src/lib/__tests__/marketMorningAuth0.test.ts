@@ -237,6 +237,33 @@ describe("Market Morning Auth0 frontend deployment adapter", () => {
     );
   });
 
+  it("reports credential-free development diagnostics when no bearer is available", async () => {
+    const diagnostic = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const unauthenticated = client({
+      isAuthenticated: vi.fn().mockResolvedValue(false),
+    });
+    sdk.createAuth0Client.mockResolvedValue(unauthenticated);
+    configureMarketMorningAuth0(ENVIRONMENT);
+
+    await expect(marketMorningAuthHeaders("operator")).resolves.toEqual({});
+    expect(diagnostic).toHaveBeenCalledWith(
+      "[market-morning-auth] not_authenticated",
+    );
+
+    clearMarketMorningAuthLifecycleAdapters();
+    diagnostic.mockClear();
+    const missingRefreshToken = client({
+      getTokenSilently: vi.fn().mockRejectedValue({ error: "missing_refresh_token" }),
+    });
+    sdk.createAuth0Client.mockResolvedValue(missingRefreshToken);
+    configureMarketMorningAuth0(ENVIRONMENT);
+
+    await expect(marketMorningAuthHeaders("operator")).resolves.toEqual({});
+    expect(diagnostic).toHaveBeenCalledWith(
+      "[market-morning-auth] token_unavailable:missing_refresh_token",
+    );
+  });
+
   it("fails closed on unknown providers or incomplete and unsafe Auth0 settings", async () => {
     for (const environment of [
       { ...ENVIRONMENT, VITE_MARKET_MORNING_AUTH_PROVIDER: "unknown" },
