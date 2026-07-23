@@ -22,6 +22,17 @@ def _values(
             f"{staging_database}?charset=utf8mb4"
         ),
         "VIBE_MARKET_MORNING_RUNTIME_ENABLED": "true",
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER": "auth0",
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN": "tenant.jp.auth0.com",
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE": (
+            "https://api.market-morning.example"
+        ),
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID": (
+            "product-client-id"
+        ),
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID": (
+            "operator-client-id"
+        ),
     }
 
 
@@ -39,6 +50,68 @@ def test_build_alpha_a_environment_maps_staging_and_disables_runtime() -> None:
     ]
     assert result["VIBE_MARKET_MORNING_ENABLED"] == "true"
     assert result["VIBE_MARKET_MORNING_RUNTIME_ENABLED"] == "false"
+
+
+def test_build_alpha_a_environment_fills_public_auth_from_frontend_without_writing() -> None:
+    values = {
+        key: value
+        for key, value in _values().items()
+        if key not in alpha_a_dev_cli.PUBLIC_AUTH_ENV_KEYS
+    }
+    frontend_values = {
+        frontend_key: f"value-{index}"
+        for index, frontend_key in enumerate(
+            alpha_a_dev_cli.FRONTEND_PUBLIC_AUTH_ENV_MAP,
+            start=1,
+        )
+    }
+
+    result = alpha_a_dev_cli.build_alpha_a_environment(
+        dotenv_mapping=values,
+        frontend_dotenv_mapping=frontend_values,
+    )
+
+    assert {
+        backend_key: result[backend_key]
+        for backend_key in alpha_a_dev_cli.PUBLIC_AUTH_ENV_KEYS
+    } == {
+        backend_key: frontend_values[frontend_key]
+        for frontend_key, backend_key in (
+            alpha_a_dev_cli.FRONTEND_PUBLIC_AUTH_ENV_MAP.items()
+        )
+    }
+    assert not any(key.startswith("VITE_") for key in result)
+
+
+def test_build_alpha_a_environment_prefers_explicit_backend_public_auth() -> None:
+    values = _values()
+    frontend_values = {
+        frontend_key: "must-not-win"
+        for frontend_key in alpha_a_dev_cli.FRONTEND_PUBLIC_AUTH_ENV_MAP
+    }
+
+    result = alpha_a_dev_cli.build_alpha_a_environment(
+        dotenv_mapping=values,
+        frontend_dotenv_mapping=frontend_values,
+    )
+
+    assert result["VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN"] == (
+        "tenant.jp.auth0.com"
+    )
+
+
+def test_build_alpha_a_environment_requires_complete_public_auth() -> None:
+    values = {
+        key: value
+        for key, value in _values().items()
+        if key not in alpha_a_dev_cli.PUBLIC_AUTH_ENV_KEYS
+    }
+
+    with pytest.raises(
+        alpha_a_dev_cli.AlphaADevConfigurationError,
+        match="^alpha_a_public_auth_config_missing$",
+    ):
+        alpha_a_dev_cli.build_alpha_a_environment(dotenv_mapping=values)
 
 
 @pytest.mark.parametrize(

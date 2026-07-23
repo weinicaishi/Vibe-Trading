@@ -361,6 +361,12 @@ encoding，但不会被 shell 的注释语义截断。它拒绝缺失的 staging
 `counts_as_staging_day=false`，不能代替非 localhost HTTPS Staging、授权数据、邮件、监控或连续五个
 JPX 交易日证据。
 
+Alpha A 启动器还会在五项 `VIBE_MARKET_MORNING_PUBLIC_*` 未写入 `agent/.env` 时，只读
+`frontend/.env` 中对应的 `VITE_MARKET_MORNING_*` 公开值，并仅注入后端子进程；它不会改写两个
+`.env`、不会复制其他前端变量，也不会输出配置值。显式配置的后端公开值优先。五项值仍不完整时
+启动器 fail closed。Vite 开发代理必须转发 `/market-morning/runtime-config`，以便本地页面也先走
+与生产相同的 runtime-config 链路；开发 fallback 只用于后端不可用时的诊断兼容。
+
 底层仍保留 provider-neutral 的 OIDC lifecycle 端口。非 Auth0 部署侧必须在 React `createRoot` 之前注册产品与
 运营两个隔离 scope 的 SDK wrapper；核心会在任何私有 API Provider／运营数据请求挂载前等待
 `initialize()`，并在每次请求前调用 `getAccessToken()`。登录和登出只接受同源、无 fragment 的相对

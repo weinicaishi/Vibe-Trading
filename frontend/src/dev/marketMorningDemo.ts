@@ -28,7 +28,7 @@ export interface DemoResponse {
 }
 
 export const MARKET_MORNING_DEV_API_PROXY_PATTERN =
-  "^/market-morning/(?:_internal/(?:auth/session|deployment-preflight|operations/(?:summary|halts(?:/[^/]+)?)|event-briefs(?:/[^/]+/review)?|content-reports(?:/[^/]+/review)?|issuer-aliases(?:/[^/]+/review)?|event-merge-candidates(?:/[^/]+/review)?|private-beta/invites(?:/[^/]+)?|users/[^/]+/access)|auth/session|private-beta/invitations/accept|delivery-links/redeem|settings|edition/today|editions/[^/]+/(?:event-states|events/[^/]+/(?:state|report)|sources/open)|watchlist(?:/[^/]+)?|issuers/(?:search|[^/]+/(?:research|note))|consents|account-deletion-requests|account-data-export)(?:\\?[^#]*)?$";
+  "^/market-morning/(?:runtime-config|_internal/(?:auth/session|deployment-preflight|operations/(?:summary|halts(?:/[^/]+)?)|event-briefs(?:/[^/]+/review)?|content-reports(?:/[^/]+/review)?|issuer-aliases(?:/[^/]+/review)?|event-merge-candidates(?:/[^/]+/review)?|private-beta/invites(?:/[^/]+)?|users/[^/]+/access)|auth/session|private-beta/invitations/accept|delivery-links/redeem|settings|edition/today|editions/[^/]+/(?:event-states|events/[^/]+/(?:state|report)|sources/open)|watchlist(?:/[^/]+)?|issuers/(?:search|[^/]+/(?:research|note))|consents|account-deletion-requests|account-data-export)(?:\\?[^#]*)?$";
 
 function watchlistItem(
   issuerId: string,

@@ -102,6 +102,7 @@ describe("Market Morning local browser demo", () => {
   it("keeps every browser-facing Market Morning API route behind the dev proxy", () => {
     const pattern = new RegExp(MARKET_MORNING_DEV_API_PROXY_PATTERN);
 
+    expect(pattern.test("/market-morning/runtime-config")).toBe(true);
     expect(
       pattern.test("/market-morning/_internal/deployment-preflight"),
     ).toBe(true);

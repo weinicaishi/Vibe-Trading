@@ -3,7 +3,10 @@
 This command prevents a developer browser session from accidentally using the
 product database while exercising real Auth0 flows. It reads the repository
 ``agent/.env`` with python-dotenv, validates an explicitly separate staging
-target, and maps that target to the runtime database variable.
+target, and maps that target to the runtime database variable. For the local
+Alpha A slice only, missing public Auth0 runtime values may be filled from the
+existing ``frontend/.env`` values without writing either file or exposing
+their contents.
 
 The Alpha A slice is local-only and keeps the durable scheduler runtime
 disabled. It does not count as a production deployment or as one of the five
@@ -18,6 +21,7 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 from dotenv import dotenv_values
@@ -25,6 +29,26 @@ from sqlalchemy.engine import make_url
 
 PRODUCT_DATABASE_KEY = "VIBE_MARKET_MORNING_DATABASE_URL"
 STAGING_DATABASE_KEY = "VIBE_MARKET_MORNING_STAGING_DATABASE_URL"
+FRONTEND_PUBLIC_AUTH_ENV_MAP: Mapping[str, str] = MappingProxyType(
+    {
+        "VITE_MARKET_MORNING_AUTH_PROVIDER": (
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER"
+        ),
+        "VITE_MARKET_MORNING_AUTH0_DOMAIN": (
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN"
+        ),
+        "VITE_MARKET_MORNING_AUTH0_AUDIENCE": (
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE"
+        ),
+        "VITE_MARKET_MORNING_AUTH0_PRODUCT_CLIENT_ID": (
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID"
+        ),
+        "VITE_MARKET_MORNING_AUTH0_OPERATOR_CLIENT_ID": (
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID"
+        ),
+    }
+)
+PUBLIC_AUTH_ENV_KEYS = tuple(FRONTEND_PUBLIC_AUTH_ENV_MAP.values())
 _LOOPBACK_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8898
 
@@ -63,6 +87,7 @@ def _database_target(
 def build_alpha_a_environment(
     *,
     dotenv_mapping: Mapping[str, Any],
+    frontend_dotenv_mapping: Mapping[str, Any] | None = None,
     base_environment: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
     """Build a child environment that can only target the Alpha A staging DB."""
@@ -82,6 +107,20 @@ def build_alpha_a_environment(
             if isinstance(key, str) and isinstance(value, str)
         }
     )
+    frontend_values = frontend_dotenv_mapping or {}
+    for frontend_key, backend_key in FRONTEND_PUBLIC_AUTH_ENV_MAP.items():
+        configured = result.get(backend_key)
+        if isinstance(configured, str) and configured.strip():
+            result[backend_key] = configured.strip()
+            continue
+        fallback = frontend_values.get(frontend_key)
+        if isinstance(fallback, str) and fallback.strip():
+            result[backend_key] = fallback.strip()
+    if any(
+        not isinstance(result.get(key), str) or not result[key].strip()
+        for key in PUBLIC_AUTH_ENV_KEYS
+    ):
+        raise AlphaADevConfigurationError("alpha_a_public_auth_config_missing")
     result[PRODUCT_DATABASE_KEY] = staging_url
     result["VIBE_MARKET_MORNING_ENABLED"] = "true"
     result["VIBE_MARKET_MORNING_RUNTIME_ENABLED"] = "false"
@@ -91,10 +130,15 @@ def build_alpha_a_environment(
 def _load_alpha_a_environment(env_path: Path) -> dict[str, str]:
     try:
         values = dotenv_values(env_path)
+        frontend_env_path = env_path.parent.parent / "frontend" / ".env"
+        frontend_values = (
+            dotenv_values(frontend_env_path) if frontend_env_path.is_file() else {}
+        )
     except Exception as error:
         raise AlphaADevConfigurationError("alpha_a_env_file_invalid") from error
     return build_alpha_a_environment(
         dotenv_mapping=values,
+        frontend_dotenv_mapping=frontend_values,
         base_environment=os.environ,
     )
 
@@ -171,7 +215,9 @@ if __name__ == "__main__":  # pragma: no cover
 
 __all__ = [
     "AlphaADevConfigurationError",
+    "FRONTEND_PUBLIC_AUTH_ENV_MAP",
     "PRODUCT_DATABASE_KEY",
+    "PUBLIC_AUTH_ENV_KEYS",
     "STAGING_DATABASE_KEY",
     "build_alpha_a_environment",
     "main",

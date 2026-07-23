@@ -21,6 +21,7 @@ describe("Vite API proxy config", () => {
 
     const pattern = new RegExp(MARKET_MORNING_DEV_API_PROXY_PATTERN);
     const proxiedPaths = [
+      "/market-morning/runtime-config",
       "/market-morning/settings",
       "/market-morning/edition/today",
       "/market-morning/watchlist",

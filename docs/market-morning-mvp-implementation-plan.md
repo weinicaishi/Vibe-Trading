@@ -517,7 +517,7 @@ downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含�
 开关继续关闭，Sprint 7 仍为进行中。已按哈希锁文件补齐全仓库运行依赖，并在开发依赖中声明
 `pytest-asyncio`；生产日历/行情与 runtime strict assembly 落地后，直接按
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
-`928 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
+`931 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
 `6360 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 与语法检查已通过。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有
