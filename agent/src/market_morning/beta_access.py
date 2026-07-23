@@ -214,6 +214,10 @@ async def accept_private_beta_invite(
             updated_at=occurred_at,
         )
         session.add(user)
+        # MySQL cannot infer ORM insert ordering from the scalar foreign-key
+        # value on AuditLog. Persist the new parent row before adding the
+        # acceptance audit that references it.
+        await session.flush()
     elif user.deleted_at is not None or user.account_status in {"deleted", "suspended"}:
         raise BetaAccessConflict("private beta account is unavailable")
     else:

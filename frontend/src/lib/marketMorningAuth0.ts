@@ -22,6 +22,7 @@ interface Auth0RedirectState {
 }
 
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
+const AUTHORIZATION_SCOPE = "openid profile offline_access";
 const CLIENT_ID = /^[A-Za-z0-9_-]{8,128}$/;
 const IPV4 = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
@@ -151,7 +152,7 @@ class MarketMorningAuth0Adapter implements MarketMorningAuthLifecycleAdapter {
       authorizationParams: {
         audience: this.config.audience,
         redirect_uri: callbackUrl,
-        scope: "openid profile",
+        scope: AUTHORIZATION_SCOPE,
       },
       authorizeTimeoutInSeconds: 60,
       cacheLocation: "memory",
@@ -191,7 +192,7 @@ class MarketMorningAuth0Adapter implements MarketMorningAuthLifecycleAdapter {
       return await client.getTokenSilently({
         authorizationParams: {
           audience: this.config.audience,
-          scope: "openid profile",
+          scope: AUTHORIZATION_SCOPE,
         },
       });
     } catch (error) {
@@ -212,7 +213,7 @@ class MarketMorningAuth0Adapter implements MarketMorningAuthLifecycleAdapter {
       authorizationParams: {
         audience: this.config.audience,
         redirect_uri: `${window.location.origin}${this.config.callbackPath}`,
-        scope: "openid profile",
+        scope: AUTHORIZATION_SCOPE,
         ui_locales: "ja",
       },
     });

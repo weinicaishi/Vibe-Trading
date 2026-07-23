@@ -48,6 +48,7 @@ class _Session:
         self.statements = []
         self.added = []
         self.flush_count = 0
+        self.flush_snapshots = []
 
     async def execute(self, statement):
         self.statements.append(statement)
@@ -58,6 +59,7 @@ class _Session:
 
     async def flush(self):
         self.flush_count += 1
+        self.flush_snapshots.append(tuple(type(value) for value in self.added))
 
 
 def _mysql_ddl(table_name: str) -> str:
@@ -156,6 +158,10 @@ def test_accept_invite_activates_one_private_beta_user_and_is_audited() -> None:
     assert invite.status == "accepted"
     assert audit.actor_user_id == user.user_id
     assert RAW_TOKEN not in repr(audit.details)
+    assert session.flush_count == 2
+    assert User in session.flush_snapshots[0]
+    assert AuditLog not in session.flush_snapshots[0]
+    assert AuditLog in session.flush_snapshots[1]
 
 
 def test_accept_invite_expires_fail_closed_without_creating_user() -> None:

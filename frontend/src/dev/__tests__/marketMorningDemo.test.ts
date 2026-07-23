@@ -106,6 +106,10 @@ describe("Market Morning local browser demo", () => {
       pattern.test("/market-morning/_internal/deployment-preflight"),
     ).toBe(true);
     expect(
+      pattern.test("/market-morning/_internal/auth/session"),
+    ).toBe(true);
+    expect(pattern.test("/market-morning/auth/session")).toBe(true);
+    expect(
       pattern.test("/market-morning/_internal/operations/summary?hours=24"),
     ).toBe(true);
     expect(

@@ -332,6 +332,8 @@ passed JSON。执行前必须同时满足：
 - `--api-base-url` 必须是非 localhost 的 HTTPS staging 地址，`--issuer-id` 必须是 staging
   IssuerMaster 中已存在的 UUID v4；刊期必须等于执行开始时的 JST 日期；
 - API 的 Maximum Access Token Lifetime 已保存为 900 秒，并在保存后重新登录取得全部新 token。
+- 自定义 API 已启用 `Allow Offline Access`，Product/Operator 两个 SPA 已启用
+  `Allow Refresh Token Rotation`；至少完成一次 access token 过期后的静默续期验证。
 
 由受控凭据引导任务写入上述三个 token 文件后，运行：
 

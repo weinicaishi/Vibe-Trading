@@ -302,7 +302,10 @@ Callback/Logout/Web Origin，不能使用通配符。OAuth callback 的 `code/er
 登出先尽力调用 SDK refresh-token revocation，再始终执行 Auth0 provider logout；即使 revocation endpoint
 暂时失败，也会卸载当前页私有数据并清除 provider/local session。后端逐请求 session validator 仍是
 撤权的权威 Gate，前端行为不能替代它。真实 tenant 还必须启用 refresh token rotation/reuse detection，
-并验证允许 URL、Action 注入的运营 roles、退出、停用与账户删除后的撤权。
+并在自定义 API 的 Settings 中启用 `Allow Offline Access`。Product 和 Operator 两个 SPA Application
+都必须在 Settings 的 Refresh Token Rotation 区域启用 `Allow Refresh Token Rotation`；前端会请求
+`openid profile offline_access`，否则 900 秒 access token 到期后无法静默续期。随后再验证允许 URL、
+Action 注入的运营 roles、退出、停用与账户删除后的撤权。
 实现依据为 [Auth0 SPA SDK](https://auth0.com/docs/libraries/auth0-single-page-app-sdk)、
 [Auth0ClientOptions](https://auth0.github.io/auth0-spa-js/interfaces/Auth0ClientOptions.html) 与
 [LogoutOptions](https://auth0.github.io/auth0-spa-js/interfaces/LogoutOptions.html) 的官方合同。

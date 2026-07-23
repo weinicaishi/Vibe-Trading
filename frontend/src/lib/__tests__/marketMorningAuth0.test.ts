@@ -79,6 +79,9 @@ describe("Market Morning Auth0 frontend deployment adapter", () => {
         cacheLocation: "memory",
         clientId: ENVIRONMENT.VITE_MARKET_MORNING_AUTH0_PRODUCT_CLIENT_ID,
         domain: ENVIRONMENT.VITE_MARKET_MORNING_AUTH0_DOMAIN,
+        authorizationParams: expect.objectContaining({
+          scope: "openid profile offline_access",
+        }),
         refreshTokenMode: "offline",
         useRefreshTokens: true,
         useRefreshTokensFallback: false,
@@ -114,7 +117,7 @@ describe("Market Morning Auth0 frontend deployment adapter", () => {
       authorizationParams: {
         audience: ENVIRONMENT.VITE_MARKET_MORNING_AUTH0_AUDIENCE,
         redirect_uri: `${window.location.origin}/market-morning`,
-        scope: "openid profile",
+        scope: "openid profile offline_access",
         ui_locales: "ja",
       },
     });
