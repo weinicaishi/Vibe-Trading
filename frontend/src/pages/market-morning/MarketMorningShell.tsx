@@ -18,6 +18,7 @@ import {
   endMarketMorningSession,
   hasMarketMorningAuthLifecycleAdapter,
   initializeMarketMorningAuth,
+  marketMorningAuthHeaders,
 } from "@/lib/marketMorningAuth";
 import { marketMorningApi } from "@/lib/marketMorningApi";
 import { isMarketMorningUiEnabled } from "@/lib/marketMorningConfig";
@@ -343,9 +344,12 @@ function ProductFrame({ pendingDeliveryToken }: { pendingDeliveryToken: string |
 function ProductAuthBoundary({ pendingDeliveryToken }: { pendingDeliveryToken: string | null }) {
   const configured = hasMarketMorningAuthLifecycleAdapter("product");
   const [attempt, setAttempt] = useState(0);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "unauthenticated" | "error"
+  >(
     configured ? "loading" : "ready",
   );
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!configured) {
@@ -355,8 +359,11 @@ function ProductAuthBoundary({ pendingDeliveryToken }: { pendingDeliveryToken: s
     let active = true;
     setStatus("loading");
     void initializeMarketMorningAuth("product")
-      .then(() => {
-        if (active) setStatus("ready");
+      .then(() => marketMorningAuthHeaders("product"))
+      .then((headers) => {
+        if (active) {
+          setStatus(headers.Authorization ? "ready" : "unauthenticated");
+        }
       })
       .catch(() => {
         if (active) setStatus("error");
@@ -366,10 +373,36 @@ function ProductAuthBoundary({ pendingDeliveryToken }: { pendingDeliveryToken: s
     };
   }, [attempt, configured]);
 
+  const login = useCallback(async () => {
+    setLoginError(null);
+    try {
+      await beginMarketMorningLogin(
+        "product",
+        `${window.location.pathname}${window.location.search}`,
+      );
+      setAttempt((value) => value + 1);
+    } catch {
+      setLoginError("ログインを開始できませんでした。もう一度お試しください。");
+    }
+  }, []);
+
   if (status === "loading") {
     return (
       <div className="min-h-[100dvh] bg-[#f6f3eb] dark:bg-slate-950">
         <LoadingState />
+      </div>
+    );
+  }
+  if (status === "unauthenticated") {
+    return (
+      <div className="min-h-[100dvh] bg-[#f6f3eb] dark:bg-slate-950">
+        <AccessPanel
+          state="unauthenticated"
+          errorMessage={loginError}
+          onLogin={() => void login()}
+          onRetry={() => setAttempt((value) => value + 1)}
+          hasPendingDeliveryToken={pendingDeliveryToken !== null}
+        />
       </div>
     );
   }

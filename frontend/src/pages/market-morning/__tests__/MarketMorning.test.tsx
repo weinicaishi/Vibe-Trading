@@ -269,19 +269,21 @@ describe("Market Morning private product shell", () => {
 
   it("starts login, reloads in place, and only then redeems an in-memory email token", async () => {
     vi.stubEnv("VITE_MARKET_MORNING_ENABLED", "true");
-    const authError = new MarketMorningApiError("Authentication required", 401);
-    const login = vi.fn();
+    let accessToken: string | null = null;
+    const login = vi.fn(() => {
+      accessToken = "product-token";
+    });
     setMarketMorningAuthLifecycleAdapter("product", {
       initialize: vi.fn(),
-      getAccessToken: () => null,
+      getAccessToken: () => accessToken,
       login,
       logout: vi.fn(),
     });
-    vi.spyOn(marketMorningApi, "getSettings")
-      .mockRejectedValueOnce(authError)
+    const settingsSpy = vi
+      .spyOn(marketMorningApi, "getSettings")
       .mockResolvedValue(SETTINGS);
-    vi.spyOn(marketMorningApi, "getWatchlist")
-      .mockRejectedValueOnce(authError)
+    const watchlistSpy = vi
+      .spyOn(marketMorningApi, "getWatchlist")
       .mockResolvedValue(EMPTY_WATCHLIST);
     const redeemSpy = vi
       .spyOn(marketMorningApi, "redeemDeliveryLink")
@@ -298,12 +300,16 @@ describe("Market Morning private product shell", () => {
 
     expect(await screen.findByText("ログインが必要です")).toBeInTheDocument();
     expect(window.location.hash).toBe("");
+    expect(settingsSpy).not.toHaveBeenCalled();
+    expect(watchlistSpy).not.toHaveBeenCalled();
     expect(redeemSpy).not.toHaveBeenCalled();
     expect(screen.getByText(/メールの専用リンクをもう一度開いてください/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "ログイン" }));
 
     expect(await screen.findByText("まず、3銘柄を選びます。")).toBeInTheDocument();
     expect(login).toHaveBeenCalledWith("/market-morning");
+    expect(settingsSpy).toHaveBeenCalledOnce();
+    expect(watchlistSpy).toHaveBeenCalledOnce();
     await waitFor(() => expect(redeemSpy).toHaveBeenCalledWith(token));
     expect(JSON.stringify(window.localStorage)).not.toContain(token);
     expect(JSON.stringify(window.sessionStorage)).not.toContain(token);
