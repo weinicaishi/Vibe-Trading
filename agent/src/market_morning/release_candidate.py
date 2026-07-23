@@ -20,6 +20,10 @@ REQUIRED_SOURCE_ARTIFACTS: Mapping[str, str] = {
     "backend_dependency_lock": "requirements-lock.txt",
     "container_image_definition": "Dockerfile",
     "frontend_dependency_lock": "frontend/package-lock.json",
+    "market_morning_backend_runtime_config": (
+        "agent/src/api/market_morning_routes.py"
+    ),
+    "market_morning_environment_schema": "agent/src/config/env_schema.py",
     "market_morning_ci_workflow": ".github/workflows/test.yml",
     "market_morning_auth0_post_login_action": "deploy/auth0/market-morning-post-login.js",
     "market_morning_auth0_runbook": "deploy/auth0/README.md",
@@ -28,6 +32,13 @@ REQUIRED_SOURCE_ARTIFACTS: Mapping[str, str] = {
     "market_morning_mysql_schema": ("database/market-morning/mysql/market_morning_schema_0018.sql"),
     "market_morning_monitoring_rules": ("deploy/market-morning/monitoring/market-morning.rules.yml"),
     "market_morning_monitoring_drill_template": ("docs/evidence/market-morning/monitoring-drill.template.json"),
+    "market_morning_frontend_auth0_adapter": (
+        "frontend/src/lib/marketMorningAuth0.ts"
+    ),
+    "market_morning_frontend_bootstrap": "frontend/src/main.tsx",
+    "market_morning_frontend_runtime_config": (
+        "frontend/src/lib/marketMorningRuntimeConfig.ts"
+    ),
     "market_morning_oidc_staging_contract": (
         "agent/src/market_morning/oidc_staging_evidence.py"
     ),

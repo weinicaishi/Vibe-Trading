@@ -251,6 +251,23 @@ class TestEnvConfigTypeCoercion:
             "VIBE_MARKET_MORNING_EMAIL_IDENTITY_FACTORY",
             "deployment.market_morning:build_email_identity",
         )
+        monkeypatch.setenv("VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER", "auth0")
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN",
+            "tenant.jp.auth0.com",
+        )
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE",
+            "https://api.market-morning.example",
+        )
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID",
+            "product_client_1234567890",
+        )
+        monkeypatch.setenv(
+            "VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID",
+            "operator_client_123456789",
+        )
         monkeypatch.setenv("VIBE_MARKET_MORNING_RUNTIME_ROLE", "worker")
         monkeypatch.setenv("VIBE_MARKET_MORNING_WORKER_POLL_SECONDS", "0.5")
 
@@ -270,6 +287,11 @@ class TestEnvConfigTypeCoercion:
         assert c.email_identity_factory == (
             "deployment.market_morning:build_email_identity"
         )
+        assert c.public_auth_provider == "auth0"
+        assert c.public_auth0_domain == "tenant.jp.auth0.com"
+        assert c.public_auth0_audience == "https://api.market-morning.example"
+        assert c.public_auth0_product_client_id == "product_client_1234567890"
+        assert c.public_auth0_operator_client_id == "operator_client_123456789"
         assert c.runtime_role == "worker"
         assert c.worker_poll_seconds == 0.5
 

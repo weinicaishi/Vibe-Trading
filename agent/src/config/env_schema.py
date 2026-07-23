@@ -368,6 +368,26 @@ class MarketMorningConfig(_EnvBase):
         default="",
         max_length=16384,
     )
+    public_auth_provider: str = Field(
+        alias="VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER",
+        default="",
+    )
+    public_auth0_domain: str = Field(
+        alias="VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN",
+        default="",
+    )
+    public_auth0_audience: str = Field(
+        alias="VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE",
+        default="",
+    )
+    public_auth0_product_client_id: str = Field(
+        alias="VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID",
+        default="",
+    )
+    public_auth0_operator_client_id: str = Field(
+        alias="VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID",
+        default="",
+    )
     runtime_role: str = Field(
         alias="VIBE_MARKET_MORNING_RUNTIME_ROLE",
         default="all",

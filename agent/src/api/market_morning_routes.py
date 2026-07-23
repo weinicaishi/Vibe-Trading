@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+import re
+from ipaddress import ip_address
 from datetime import date, datetime, timezone
 from typing import Any, Literal, Never
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, status
 from fastapi.responses import JSONResponse
@@ -117,6 +120,23 @@ class MarketMorningReadiness(BaseModel):
     reason: str | None = None
 
 
+class MarketMorningPublicAuth0Config(BaseModel):
+    provider: Literal["auth0"]
+    domain: str
+    audience: str
+    product_client_id: str
+    operator_client_id: str
+
+
+class MarketMorningFrontendRuntimeConfig(BaseModel):
+    schema_version: Literal[1] = 1
+    status: Literal["disabled", "misconfigured", "ready"]
+    feature_enabled: bool
+    ui_enabled: bool
+    auth: MarketMorningPublicAuth0Config | None = None
+    blocking_codes: list[str]
+
+
 class MarketMorningDeploymentPreflight(BaseModel):
     status: Literal["blocked", "configuration_ready"]
     scope: Literal["static_configuration_and_database"]
@@ -124,6 +144,7 @@ class MarketMorningDeploymentPreflight(BaseModel):
     database_ready: bool
     product_auth_configured: bool
     admin_auth_configured: bool
+    frontend_runtime_configured: bool
     oidc_configuration_ready: bool
     runtime_enabled: bool
     runtime_factory_configured: bool
@@ -136,6 +157,100 @@ class MarketMorningDeploymentPreflight(BaseModel):
     counts_as_t1_evidence: Literal[False] = False
     blocking_checks: list[str]
     timestamp: str
+
+
+_PUBLIC_AUTH0_CLIENT_ID = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+_PUBLIC_AUTH0_CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def _valid_public_auth0_domain(domain: str) -> tuple[bool, str]:
+    try:
+        parsed = urlsplit(domain if "://" in domain else f"https://{domain}")
+        hostname = (parsed.hostname or "").lower()
+        try:
+            ip_address(hostname)
+            literal_ip = True
+        except ValueError:
+            literal_ip = False
+        valid = bool(
+            domain
+            and len(domain) <= 253
+            and parsed.scheme == "https"
+            and hostname
+            and "." in hostname
+            and not literal_ip
+            and not parsed.username
+            and not parsed.password
+            and parsed.port in (None, 443)
+            and parsed.path in ("", "/")
+            and not parsed.query
+            and not parsed.fragment
+            and hostname != "localhost"
+            and not hostname.endswith(".localhost")
+            and not _PUBLIC_AUTH0_CONTROL_CHARACTERS.search(domain)
+            and not any(character.isspace() for character in domain)
+        )
+    except ValueError:
+        return False, ""
+    return valid, hostname
+
+
+def _frontend_runtime_config() -> MarketMorningFrontendRuntimeConfig:
+    cfg = get_env_config().market_morning
+    if not cfg.enabled:
+        return MarketMorningFrontendRuntimeConfig(
+            status="disabled",
+            feature_enabled=False,
+            ui_enabled=False,
+            blocking_codes=[],
+        )
+
+    provider = cfg.public_auth_provider.strip()
+    domain = cfg.public_auth0_domain.strip()
+    audience = cfg.public_auth0_audience.strip()
+    product_client_id = cfg.public_auth0_product_client_id.strip()
+    operator_client_id = cfg.public_auth0_operator_client_id.strip()
+    blocking_codes: list[str] = []
+
+    if provider != "auth0":
+        blocking_codes.append("frontend_auth_provider_invalid")
+
+    domain_valid, normalized_domain = _valid_public_auth0_domain(domain)
+    if not domain_valid:
+        blocking_codes.append("frontend_auth0_domain_invalid")
+    if (
+        not audience
+        or len(audience) > 512
+        or _PUBLIC_AUTH0_CONTROL_CHARACTERS.search(audience)
+        or any(character.isspace() for character in audience)
+    ):
+        blocking_codes.append("frontend_auth0_audience_invalid")
+    if not _PUBLIC_AUTH0_CLIENT_ID.fullmatch(product_client_id):
+        blocking_codes.append("frontend_auth0_product_client_id_invalid")
+    if not _PUBLIC_AUTH0_CLIENT_ID.fullmatch(operator_client_id):
+        blocking_codes.append("frontend_auth0_operator_client_id_invalid")
+
+    if blocking_codes:
+        return MarketMorningFrontendRuntimeConfig(
+            status="misconfigured",
+            feature_enabled=True,
+            ui_enabled=False,
+            blocking_codes=sorted(blocking_codes),
+        )
+
+    return MarketMorningFrontendRuntimeConfig(
+        status="ready",
+        feature_enabled=True,
+        ui_enabled=True,
+        auth=MarketMorningPublicAuth0Config(
+            provider="auth0",
+            domain=normalized_domain,
+            audience=audience,
+            product_client_id=product_client_id,
+            operator_client_id=operator_client_id,
+        ),
+        blocking_codes=[],
+    )
 
 
 class IssuerSearchItem(BaseModel):
@@ -827,6 +942,20 @@ def _raise_issuer_research_http_error(exc: Exception) -> Never:
 def register_market_morning_routes(app: FastAPI) -> None:
     """Register internal readiness without initializing the product database."""
 
+    @app.get(
+        "/market-morning/runtime-config",
+        response_model=MarketMorningFrontendRuntimeConfig,
+    )
+    async def market_morning_frontend_runtime_config():
+        payload = _frontend_runtime_config()
+        return JSONResponse(
+            content=payload.model_dump(),
+            headers={
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
     @app.delete("/market-morning/auth/session", status_code=status.HTTP_204_NO_CONTENT)
     async def market_morning_session_logout(
         _revoked: None = Depends(revoke_current_product_session),
@@ -922,6 +1051,7 @@ def register_market_morning_routes(app: FastAPI) -> None:
 
         product_auth_configured = bool(cfg.auth_factory.strip())
         admin_auth_configured = bool(cfg.admin_auth_factory.strip())
+        frontend_runtime_configured = _frontend_runtime_config().status == "ready"
         oidc_blocking_checks = builtin_oidc_preflight_checks(cfg)
         oidc_configuration_ready = not oidc_blocking_checks
         runtime_enabled = bool(cfg.runtime_enabled)
@@ -941,6 +1071,7 @@ def register_market_morning_routes(app: FastAPI) -> None:
             "database_not_ready": not database_ready,
             "product_auth_factory_missing": not product_auth_configured,
             "admin_auth_factory_missing": not admin_auth_configured,
+            "frontend_runtime_config_missing": not frontend_runtime_configured,
             "runtime_disabled": not runtime_enabled,
             "runtime_factory_missing": not runtime_factory_configured,
             "provider_bundle_factory_missing": (
@@ -961,6 +1092,7 @@ def register_market_morning_routes(app: FastAPI) -> None:
             database_ready=database_ready,
             product_auth_configured=product_auth_configured,
             admin_auth_configured=admin_auth_configured,
+            frontend_runtime_configured=frontend_runtime_configured,
             oidc_configuration_ready=oidc_configuration_ready,
             runtime_enabled=runtime_enabled,
             runtime_factory_configured=runtime_factory_configured,

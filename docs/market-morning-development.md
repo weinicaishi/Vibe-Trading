@@ -121,7 +121,8 @@ GET /market-morning/_internal/deployment-preflight
 ```
 
 该端点在不加载 deployment factory、不调用外部 provider 的前提下，汇总 feature、精确数据库
-revision、产品与运营认证 factory、runtime、邮件 webhook、私有深链 URL/密钥、synthetic data 和 fixture runtime 配置。若选择内置生产 runtime factory，还会要求已配置 provider bundle factory。全部满足
+revision、产品与运营认证 factory、前端公开 runtime config、runtime、邮件 webhook、私有深链 URL/密钥、
+synthetic data 和 fixture runtime 配置。若选择内置生产 runtime factory，还会要求已配置 provider bundle factory。全部满足
 时返回 `200 / configuration_ready`，否则返回 `503 / blocked` 以及稳定的
 `blocking_checks` 代码。响应只含布尔值和代码，不返回数据库 URL、factory 路径、secret 或底层错误。
 `scope=static_configuration_and_database` 且 `counts_as_t1_evidence=false`：它是启动前的必要检查，
@@ -280,7 +281,11 @@ API access token 使用。
 当前仓库提供的是上述 provider-neutral 边界，不包含某一家 OIDC 的 JWKS adapter 或凭据。未配置
 factory 时固定返回脱敏 503，测试仍可通过 dependency override 注入已验证 principal。
 
-前端已内置官方 `@auth0/auth0-spa-js` 2.23 adapter，并由 `main.tsx` 在 React `createRoot` 前同步注册；
+前端已内置官方 `@auth0/auth0-spa-js` 2.23 adapter。`main.tsx` 会先请求同源、无认证且
+`Cache-Control: no-store` 的 `GET /market-morning/runtime-config`，再在 React `createRoot` 前注册 adapter；
+生产环境只使用该运行时响应，响应缺失、非法或配置不完整时 fail closed，仅关闭 Market Morning，
+不阻断普通 Vibe-Trading 页面。Vite development 可显式回退到 `VITE_*`，但这些构建期值不再是
+staging/T1 配置来源，因此同一个不可变 Docker/CI 镜像可以跨环境部署。
 SDK 本体只在访问产品或运营私有路由并开始认证初始化时动态加载，不增加普通 Vibe 路由的首屏 SDK
 负担。启用时必须同时配置两个独立 SPA application：
 
@@ -292,7 +297,23 @@ VITE_MARKET_MORNING_AUTH0_PRODUCT_CLIENT_ID=<public SPA client id>
 VITE_MARKET_MORNING_AUTH0_OPERATOR_CLIENT_ID=<public SPA client id>
 ```
 
-这些都是会进入浏览器 bundle 的公开标识，严禁填写 client secret。adapter 固定使用 Authorization Code
+这些 `VITE_*` 只用于 standalone Vite development。Docker/staging/T1 必须改为在 API/worker 的
+`agent/.env` 或 secrets/config manager 中提供：
+
+```text
+VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER=auth0
+VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN=tenant.jp.auth0.com
+VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE=https://api.market-morning.example
+VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID=<public SPA client id>
+VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID=<public SPA client id>
+```
+
+API 通过无认证的 `GET /market-morning/runtime-config` 只返回以上公开值、状态和稳定阻断码，
+不返回 issuer、JWKS URL、数据库 URL、secret 或 token。正式前端先加载该配置再挂载 React；
+加载失败或配置不完整时仅关闭 Market Morning。开发模式可以回退 `VITE_*`，production 不回退，
+因此 CI 构建的同一不可变镜像可用于不同环境。
+
+这些都是浏览器可见的公开标识，严禁填写 client secret。adapter 固定使用 Authorization Code
 with PKCE、`cacheLocation=memory`、offline rotating refresh token、禁用 iframe fallback、10 秒 HTTP
 timeout，并为产品与运营使用不同 client/cache 实例。产品 callback 是 `/market-morning`，运营 callback
 是 `/market-morning-ops`；两者的 logout return URL 都是站点根路径。Auth0 Dashboard 必须精确登记相同
@@ -302,7 +323,8 @@ Callback/Logout/Web Origin，不能使用通配符。OAuth callback 的 `code/er
 登出先尽力调用 SDK refresh-token revocation，再始终执行 Auth0 provider logout；即使 revocation endpoint
 暂时失败，也会卸载当前页私有数据并清除 provider/local session。后端逐请求 session validator 仍是
 撤权的权威 Gate，前端行为不能替代它。真实 tenant 还必须启用 refresh token rotation/reuse detection，
-并在自定义 API 的 Settings 中启用 `Allow Offline Access`。Product 和 Operator 两个 SPA Application
+并在左侧 `Applications → APIs → Market Morning Staging API → Settings` 中启用 `Allow Offline Access`
+（它不会显示在 Product/Operator SPA Application 的 Settings）。Product 和 Operator 两个 SPA Application
 都必须在 Settings 的 Refresh Token Rotation 区域启用 `Allow Refresh Token Rotation`；前端会请求
 `openid profile offline_access`，否则 900 秒 access token 到期后无法静默续期。随后再验证允许 URL、
 Action 注入的运营 roles、退出、停用与账户删除后的撤权。

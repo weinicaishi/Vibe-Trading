@@ -61,6 +61,16 @@ def test_ci_uploads_hash_only_manifests_and_enforces_every_mysql_step() -> None:
         assert f'${{{{ steps.{step_id}.outcome }}}}' in workflow
 
 
+def test_ci_proves_frontend_auth0_values_are_runtime_only() -> None:
+    workflow = _workflow_text()
+
+    assert "runtime-config-sentinel.jp.auth0.com" in workflow
+    assert 'grep -R -F "market-morning/runtime-config" dist' in workflow
+    assert "Production frontend embedded a build-time Auth0 value" in workflow
+    assert "$VITE_MARKET_MORNING_AUTH0_PRODUCT_CLIENT_ID" in workflow
+    assert "$VITE_MARKET_MORNING_AUTH0_OPERATOR_CLIENT_ID" in workflow
+
+
 def test_ci_binds_all_verification_outputs_to_one_immutable_release() -> None:
     workflow = _workflow_text()
 

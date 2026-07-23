@@ -23,7 +23,7 @@
 | 名称 | 敏感 | 用途 | Local/CI | Staging/T1 |
 |---|---|---|---|---|
 | `VIBE_MARKET_MORNING_ENABLED` | 否 | API 功能开关 | 默认 `false` | Gate 批准后 `true` |
-| `VITE_MARKET_MORNING_ENABLED` | 否 | 前端入口开关 | 默认 `false` | 与后端一致 |
+| `VITE_MARKET_MORNING_ENABLED` | 否 | 仅本地 Vite 的前端入口兜底开关 | 默认 `false` | 不使用；由后端 runtime config 注入 |
 | `VIBE_MARKET_MORNING_SYNTHETIC_EDITION_ENABLED` | 否 | 合成朝刊 | demo 可显式开启 | 必须 `false` |
 | `VIBE_MARKET_MORNING_DATABASE_URL` | **是** | 产品 MySQL URL | 本地 secret | secrets manager |
 | `VIBE_MARKET_MORNING_DATABASE_ECHO` | 否 | SQL 日志 | 默认 `false` | 必须 `false` |
@@ -59,6 +59,11 @@
 | `VIBE_MARKET_MORNING_OIDC_ACCESS_TOKEN_MAX_LIFETIME_SECONDS` | 否 | access token 最大有效期，60–1800 秒 | `900` | `900` |
 | `VIBE_MARKET_MORNING_OIDC_ADMIN_ROLES_CLAIM` | 否 | 运营 roles claim 名 | `roles` | provider 固定 claim |
 | `VIBE_MARKET_MORNING_OIDC_ADMIN_ROLE_PERMISSIONS_JSON` | 内置运营 OIDC 时是 | role 到四项权限的显式映射 | fake role | 审核后的最小权限 JSON |
+| `VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER` | 否 | 浏览器 runtime config 的公开认证 provider | 本地可不设并回退 `VITE_*` | 固定 `auth0` |
+| `VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN` | 否 | 浏览器可见 Auth0 tenant domain | 测试 domain | 精确公开 domain；不得填写 secret |
+| `VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE` | 否 | 浏览器可见 API audience | 测试 audience | 与专用 API identifier 一致 |
+| `VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID` | 否 | Product SPA 公开 Client ID | 测试 ID | Product SPA 的公开 Client ID |
+| `VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID` | 否 | Operator SPA 公开 Client ID | 测试 ID | Operator SPA 的公开 Client ID |
 | `VIBE_MARKET_MORNING_EMAIL_WEBHOOK_FACTORY` | 否 | 邮件回调 adapter factory | fake 可选 | provider factory |
 | `VIBE_MARKET_MORNING_RESEND_API_KEY` | **是** | Resend 发送凭据 | mock，不设真实值 | secrets manager；只授予发送权限 |
 | `VIBE_MARKET_MORNING_RESEND_FROM` | 否 | 已验证的发件身份 | 测试域名 | 已验证的产品发件域名 |

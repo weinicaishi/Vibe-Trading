@@ -118,10 +118,26 @@ jobs:
 
       - name: Frontend build
         id: frontend_build
+        env:
+          VITE_MARKET_MORNING_AUTH0_DOMAIN: runtime-config-sentinel.jp.auth0.com
+          VITE_MARKET_MORNING_AUTH0_AUDIENCE: https://runtime-config-sentinel.example/api
+          VITE_MARKET_MORNING_AUTH0_PRODUCT_CLIENT_ID: runtime_config_product_sentinel
+          VITE_MARKET_MORNING_AUTH0_OPERATOR_CLIENT_ID: runtime_config_operator_sentinel
         run: |
           cd frontend
           npm ci
           npm run build
+          grep -R -F "market-morning/runtime-config" dist >/dev/null
+          for value in \
+            "$VITE_MARKET_MORNING_AUTH0_DOMAIN" \
+            "$VITE_MARKET_MORNING_AUTH0_AUDIENCE" \
+            "$VITE_MARKET_MORNING_AUTH0_PRODUCT_CLIENT_ID" \
+            "$VITE_MARKET_MORNING_AUTH0_OPERATOR_CLIENT_ID"; do
+            if grep -R -F -- "$value" dist >/dev/null; then
+              echo "Production frontend embedded a build-time Auth0 value" >&2
+              exit 1
+            fi
+          done
 
       - name: Frontend tests
         id: frontend_tests

@@ -5,8 +5,10 @@ import {
   normalizeMarketMorningReturnTo,
   setMarketMorningAuthLifecycleAdapter,
 } from "@/lib/marketMorningAuth";
-
-type FrontendEnvironment = Record<string, string | boolean | undefined>;
+import {
+  getMarketMorningFrontendEnvironment,
+  type MarketMorningFrontendEnvironment,
+} from "@/lib/marketMorningRuntimeConfig";
 
 interface Auth0ScopeConfiguration {
   audience: string;
@@ -31,7 +33,7 @@ async function createClient(options: Auth0ClientOptions & { refreshTokenMode: "o
   return createAuth0Client(options);
 }
 
-function value(environment: FrontendEnvironment, key: string): string {
+function value(environment: MarketMorningFrontendEnvironment, key: string): string {
   const current = environment[key];
   return typeof current === "string" ? current.trim() : "";
 }
@@ -67,7 +69,7 @@ function normalizeDomain(raw: string): string {
 }
 
 function configuration(
-  environment: FrontendEnvironment,
+  environment: MarketMorningFrontendEnvironment,
   scope: "product" | "operator",
 ): Auth0ScopeConfiguration {
   const clientId = value(
@@ -267,7 +269,8 @@ function failingAdapter(): MarketMorningAuthLifecycleAdapter {
 }
 
 export function configureMarketMorningAuth0(
-  environment: FrontendEnvironment = import.meta.env,
+  environment: MarketMorningFrontendEnvironment =
+    getMarketMorningFrontendEnvironment(),
 ): "configured" | "disabled" | "invalid" {
   const provider = value(environment, "VITE_MARKET_MORNING_AUTH_PROVIDER");
   if (!provider) return "disabled";

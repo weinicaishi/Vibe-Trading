@@ -4,7 +4,7 @@
 > [MVP 完成度审计](./market-morning-mvp-completion-audit.md)。
 > 有效不可变候选以 `release/market-morning-mvp` 的 GitHub Actions artifact 为准，不在计划中
 > 手填一个会过期的“当前” revision。最终同一 revision 必须通过九项 release-candidate
-> 检查，runtime schema 为 `0018_market_morning_auth_sessions`，20 个固定发布源文件和 5 份
+> 检查，runtime schema 为 `0018_market_morning_auth_sessions`，25 个固定发布源文件和 5 份
 > 验证证据 hash 完整。本地 manifest 不替代 CI。
 > 本地/CI 证据均固定不计连续 staging 日或 T1 发布证据。产品主库仍为 `0004`
 > 且未执行迁移。
@@ -317,7 +317,7 @@ fixture／缺配置／旧 schema 均拒绝启动；scheduler 与 worker 共用 S
 `agent/tests/test_market_morning_*.py` 运行的普通 Market Morning 回归为 915 项通过、15 项按默认安全策略跳过；隔离 MySQL 8.0 与远程专用验收库上的 12 项业务 probe、3 项
 破坏性 migration probe 均已分别 12/12、3/3 通过。远程并发验收还发现并修正了 current global run
 切换时的同表更新顺序：先单独 flush 旧版本 demotion，再 promotion 新版本，避免 MySQL generated
-unique key 观察到瞬时双 current。前端最近一次回归为 342 项通过且生产构建成功，迁移 head 已推进到
+unique key 观察到瞬时双 current。前端最近一次回归为 347 项通过且生产构建成功，迁移 head 已推进到
 `0018`；空库 bootstrap 包含 34 张业务表、精确 revision 与
 `varchar(64)` 版本字段，最新专用数据库的空库升级与破坏性迁移演练已分别以
 `12/12` 和 `3/3` 通过。
@@ -449,7 +449,11 @@ product/operator adapter，核心保证私有 API 前初始化、每请求即时
 登出返回路径、初始化失败重试和 401 登录入口；产品邮件 token 会先离开 URL，只在认证成功后兑换，
 不落 localStorage/sessionStorage。官方 Auth0 SPA SDK adapter 也已接入启动链：产品/运营使用独立 client，
 固定 PKCE、memory cache、offline rotating refresh token、禁 iframe fallback、callback 参数清理、
-refresh-token revoke + provider logout，并动态加载 SDK，不拖累普通 Vibe 路由。2026-07-23 已在
+refresh-token revoke + provider logout，并动态加载 SDK，不拖累普通 Vibe 路由。为避免 Auth0
+公开配置被写死在构建产物，生产前端会在挂载 React 前读取同源
+`GET /market-morning/runtime-config`；后端只返回公开 provider/domain/audience/两个 SPA Client ID，
+配置缺失或非法时仅关闭 Market Morning，并以 `frontend_runtime_config_missing` 阻断静态部署预检。
+只有 Vite development 允许回退 `VITE_*`，staging/T1 使用同一不可变镜像的运行时配置。2026-07-23 已在
 Alpha A 本地真实 Auth0 与独立 staging MySQL 上完成 Product/Operator 900 秒 token、刷新轮换、角色
 保护、精确 token 注销，以及 Product 关注股写入与第二个独立 token 会话读取；启动器会 fail closed，
 拒绝产品库、非 MySQL、库名不含 `staging` 或非 loopback 目标。该证据固定不计 staging/T1。尚未完成
@@ -494,7 +498,8 @@ onboarding principal 在未配置内置 OIDC 或审核后的自定义 factory �
 前端已增加只驻留内存的 product/operator lifecycle 端口，每个 scope 在私有请求前并发安全地初始化，
 每次请求即时取 token；产品壳与运营页均具备登录、登出、初始化失败重试，产品请求不复用旧 API Key，
 注册运营 provider/lifecycle 后也不会回退旧 key。内置 Auth0 SDK wrapper 已完成 PKCE、memory cache、
-rotating refresh token、callback 清理、refresh-token revoke 与 provider logout；真实 tenant/application、
+rotating refresh token、callback 清理、refresh-token revoke 与 provider logout；公开 SPA 配置已改为
+后端 runtime config 注入并纳入 deployment preflight；真实 tenant/application、
 允许 URL、Post-Login Action 和两个 SPA 的 User-delegated Access 已配置。内置 factory 的静态预检已增加 issuer/JWKS/audience/session validator/role mapping 稳定阻断码，
 PyJWT crypto 也进入核心哈希锁依赖。
 Alpha A 已用 900 秒新 access token 完成产品/运营 OIDC 跨页面与跨 token 会话 E2E、角色保护、
@@ -512,7 +517,7 @@ downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含�
 开关继续关闭，Sprint 7 仍为进行中。已按哈希锁文件补齐全仓库运行依赖，并在开发依赖中声明
 `pytest-asyncio`；生产日历/行情与 runtime strict assembly 落地后，直接按
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
-`922 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
+`928 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
 `6354 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 与语法检查已通过。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有

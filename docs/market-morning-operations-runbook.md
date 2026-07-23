@@ -66,6 +66,8 @@ docker compose --profile market-morning up -d market-morning-runtime
 1. `ready` 必须为 `200 / ready`，数据库 schema 必须精确为当前 runtime revision。
 2. `deployment-preflight` 必须为 `200 / configuration_ready` 且 `blocking_checks=[]`。该结果仅证明
    静态配置和数据库 Gate，固定 `counts_as_t1_evidence=false`，不能作为 T1 或 staging 成功证据。
+   其中 `frontend_runtime_configured=true` 才能证明同一不可变镜像可在当前环境得到完整的公开 Auth0
+   SPA 配置；`frontend_runtime_config_missing` 不得通过重新构建前端并烧入 `VITE_*` 绕过。
 3. runtime flag、内置 production factory、部署 provider bundle、JPX/US calendar provider 均为生产配置；出现
    `fixture_` provider 时立即停发。
 4. runtime 必须在创建 worker 前完成 `licensed_sources`、`market_snapshots`、`event_brief_model`、

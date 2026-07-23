@@ -185,6 +185,138 @@ def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     return TestClient(app, client=("127.0.0.1", 50000))
 
 
+def _configure_frontend_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER", "auth0")
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN",
+        "tenant.jp.auth0.com",
+    )
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE",
+        "https://api.market-morning.example",
+    )
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID",
+        "product_client_1234567890",
+    )
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_OPERATOR_CLIENT_ID",
+        "operator_client_123456789",
+    )
+
+
+def test_frontend_runtime_config_defaults_closed_without_auth(
+    client: TestClient,
+) -> None:
+    response = client.get("/market-morning/runtime-config")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.json() == {
+        "schema_version": 1,
+        "status": "disabled",
+        "feature_enabled": False,
+        "ui_enabled": False,
+        "auth": None,
+        "blocking_codes": [],
+    }
+
+
+def test_frontend_runtime_config_returns_only_public_ready_values(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIBE_MARKET_MORNING_ENABLED", "true")
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_DATABASE_URL",
+        "mysql+asyncmy://market:super-secret@mysql/market_morning",
+    )
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_OIDC_JWKS_URL",
+        "https://tenant.jp.auth0.com/.well-known/jwks.json",
+    )
+    _configure_frontend_runtime(monkeypatch)
+
+    response = client.get("/market-morning/runtime-config")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "schema_version": 1,
+        "status": "ready",
+        "feature_enabled": True,
+        "ui_enabled": True,
+        "auth": {
+            "provider": "auth0",
+            "domain": "tenant.jp.auth0.com",
+            "audience": "https://api.market-morning.example",
+            "product_client_id": "product_client_1234567890",
+            "operator_client_id": "operator_client_123456789",
+        },
+        "blocking_codes": [],
+    }
+    assert "super-secret" not in response.text
+    assert "jwks" not in response.text.lower()
+
+
+def test_frontend_runtime_config_fails_closed_with_stable_codes(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIBE_MARKET_MORNING_ENABLED", "true")
+    monkeypatch.setenv("VIBE_MARKET_MORNING_PUBLIC_AUTH_PROVIDER", "unknown")
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN",
+        "http://localhost:8080",
+    )
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_AUDIENCE",
+        "audience with spaces",
+    )
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_PRODUCT_CLIENT_ID",
+        "short",
+    )
+
+    response = client.get("/market-morning/runtime-config")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "schema_version": 1,
+        "status": "misconfigured",
+        "feature_enabled": True,
+        "ui_enabled": False,
+        "auth": None,
+        "blocking_codes": [
+            "frontend_auth0_audience_invalid",
+            "frontend_auth0_domain_invalid",
+            "frontend_auth0_operator_client_id_invalid",
+            "frontend_auth0_product_client_id_invalid",
+            "frontend_auth_provider_invalid",
+        ],
+    }
+
+
+def test_frontend_runtime_config_oversized_value_does_not_break_other_routes(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIBE_MARKET_MORNING_ENABLED", "true")
+    _configure_frontend_runtime(monkeypatch)
+    monkeypatch.setenv(
+        "VIBE_MARKET_MORNING_PUBLIC_AUTH0_DOMAIN",
+        f"{'a' * 254}.example",
+    )
+
+    response = client.get("/market-morning/runtime-config")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "misconfigured"
+    assert response.json()["blocking_codes"] == [
+        "frontend_auth0_domain_invalid",
+    ]
+
+
 def test_market_morning_readiness_defaults_closed(client: TestClient) -> None:
     response = client.get("/market-morning/_internal/ready")
 
@@ -354,6 +486,7 @@ def test_deployment_preflight_lists_only_stable_blocking_checks(
         "database_ready": False,
         "product_auth_configured": False,
         "admin_auth_configured": False,
+        "frontend_runtime_configured": False,
         "oidc_configuration_ready": True,
         "runtime_enabled": False,
         "runtime_factory_configured": False,
@@ -370,6 +503,7 @@ def test_deployment_preflight_lists_only_stable_blocking_checks(
             "delivery_link_configuration_missing",
             "email_identity_factory_missing",
             "email_webhook_factory_missing",
+            "frontend_runtime_config_missing",
             "product_auth_factory_missing",
             "runtime_disabled",
             "runtime_factory_missing",
@@ -445,6 +579,7 @@ def test_deployment_preflight_reports_configuration_ready_without_values(
         "VIBE_MARKET_MORNING_DELIVERY_LINK_SIGNING_SECRET",
         "deployment-only-signing-secret-32",
     )
+    _configure_frontend_runtime(monkeypatch)
 
     async def _ready() -> tuple[bool, str]:
         return True, "ready"
@@ -468,6 +603,7 @@ def test_deployment_preflight_reports_configuration_ready_without_values(
             "database_ready",
             "product_auth_configured",
             "admin_auth_configured",
+            "frontend_runtime_configured",
             "oidc_configuration_ready",
             "runtime_enabled",
             "runtime_factory_configured",
@@ -569,6 +705,7 @@ def test_deployment_preflight_blocks_incomplete_builtin_oidc_with_stable_codes(
         "VIBE_MARKET_MORNING_DELIVERY_LINK_SIGNING_SECRET",
         "deployment-only-signing-secret-32",
     )
+    _configure_frontend_runtime(monkeypatch)
 
     async def _ready() -> tuple[bool, str]:
         return True, "ready"

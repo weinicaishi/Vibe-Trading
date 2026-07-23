@@ -292,6 +292,24 @@ def test_required_release_source_artifacts_pin_oidc_staging_probe_runner() -> No
     )
 
 
+def test_required_release_source_artifacts_pin_frontend_runtime_config() -> None:
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_backend_runtime_config"] == (
+        "agent/src/api/market_morning_routes.py"
+    )
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_environment_schema"] == (
+        "agent/src/config/env_schema.py"
+    )
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_frontend_bootstrap"] == (
+        "frontend/src/main.tsx"
+    )
+    assert REQUIRED_SOURCE_ARTIFACTS[
+        "market_morning_frontend_runtime_config"
+    ] == "frontend/src/lib/marketMorningRuntimeConfig.ts"
+    assert REQUIRED_SOURCE_ARTIFACTS["market_morning_frontend_auth0_adapter"] == (
+        "frontend/src/lib/marketMorningAuth0.ts"
+    )
+
+
 def test_release_candidate_console_script_is_packaged() -> None:
     project = Path("pyproject.toml").read_text(encoding="utf-8")
 
