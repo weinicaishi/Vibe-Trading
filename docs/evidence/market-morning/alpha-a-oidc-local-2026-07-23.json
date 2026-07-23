@@ -1,0 +1,67 @@
+{
+  "schema_version": "1",
+  "scope": "market_morning_alpha_a_local_oidc",
+  "environment_tier": "local_alpha_a",
+  "observed_date": "2026-07-23",
+  "tested_revision": "9a0823170b03acc8b376ba50d4a110a997e8e55f",
+  "status": "passed",
+  "counts_as_staging_day": false,
+  "counts_as_t1_release_evidence": false,
+  "credential_material_stored": false,
+  "database_scope": "dedicated_staging",
+  "checks": [
+    {
+      "name": "product_access_token_lifetime",
+      "status": "passed",
+      "observed_seconds": 900
+    },
+    {
+      "name": "product_refresh_token_rotation",
+      "status": "passed",
+      "clock_advance_seconds": 960
+    },
+    {
+      "name": "product_watchlist_write",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "product_second_token_session_read",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "product_exact_logout",
+      "status": "passed",
+      "logout_http_status": 204,
+      "old_token_http_status": 401,
+      "other_token_http_status": 200
+    },
+    {
+      "name": "operator_role_claim",
+      "status": "passed"
+    },
+    {
+      "name": "operator_protected_api_after_refresh",
+      "status": "passed",
+      "http_status": 200
+    },
+    {
+      "name": "operator_refresh_token_rotation",
+      "status": "passed",
+      "clock_advance_seconds": 960
+    },
+    {
+      "name": "operator_exact_logout",
+      "status": "passed",
+      "logout_http_status": 204,
+      "old_token_http_status": 401
+    }
+  ],
+  "limitations": [
+    "headed_browser_alpha_a_local_evidence",
+    "not_https_non_localhost_staging",
+    "not_a_jpx_staging_day",
+    "no_authorized_market_source_or_email_delivery_evidence"
+  ]
+}
