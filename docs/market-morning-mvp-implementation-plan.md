@@ -449,9 +449,12 @@ product/operator adapter，核心保证私有 API 前初始化、每请求即时
 登出返回路径、初始化失败重试和 401 登录入口；产品邮件 token 会先离开 URL，只在认证成功后兑换，
 不落 localStorage/sessionStorage。官方 Auth0 SPA SDK adapter 也已接入启动链：产品/运营使用独立 client，
 固定 PKCE、memory cache、offline rotating refresh token、禁 iframe fallback、callback 参数清理、
-refresh-token revoke + provider logout，并动态加载 SDK，不拖累普通 Vibe 路由。尚未完成真实账号／域名／
-邮件回放、实际 identity directory adapter，以及真实 Auth0 tenant 的允许 URL、角色、刷新、撤权与跨会话
-验收，Sprint 6 仍为进行中。通用 OIDC/JWKS
+refresh-token revoke + provider logout，并动态加载 SDK，不拖累普通 Vibe 路由。2026-07-23 已在
+Alpha A 本地真实 Auth0 与独立 staging MySQL 上完成 Product/Operator 900 秒 token、刷新轮换、角色
+保护、精确 token 注销，以及 Product 关注股写入与第二个独立 token 会话读取；启动器会 fail closed，
+拒绝产品库、非 MySQL、库名不含 `staging` 或非 loopback 目标。该证据固定不计 staging/T1。尚未完成
+非 localhost HTTPS Staging 的同 revision OIDC 复验、邮件回放、实际 identity directory adapter 和
+生产域名验收，Sprint 6 仍为进行中。通用 OIDC/JWKS
 adapter 已内置：固定 HTTPS issuer/JWKS、精确 audience 和非对称算法，验证 signature/exp/iat/
 auth_time、限定 JWKS cache/response、支持未知 kid 单次轮换刷新并抑制 kid 流量放大、逐请求调用
 deployment session 撤权 validator、对 issuer-scoped subject 做不可逆伪名化；运营角色仅能映射到
@@ -494,8 +497,11 @@ onboarding principal 在未配置内置 OIDC 或审核后的自定义 factory �
 rotating refresh token、callback 清理、refresh-token revoke 与 provider logout；真实 tenant/application、
 允许 URL、Post-Login Action 和两个 SPA 的 User-delegated Access 已配置。内置 factory 的静态预检已增加 issuer/JWKS/audience/session validator/role mapping 稳定阻断码，
 PyJWT crypto 也进入核心哈希锁依赖。
-真实 provider usage/费率样本、900 秒新 access token 下的产品/运营 OIDC 跨页面与跨会话 E2E、
-精确 token 撤销、外部 adapter 和连续 5 日 staging 演练仍未完成；远程 MySQL 12+3
+Alpha A 已用 900 秒新 access token 完成产品/运营 OIDC 跨页面与跨 token 会话 E2E、角色保护、
+刷新轮换和精确 token 撤销；去敏记录位于
+`docs/evidence/market-morning/alpha-a-oidc-local-2026-07-23.json`，不保存凭据或个人信息并明确
+`counts_as_staging_day=false`。真实 provider usage/费率样本、非 localhost HTTPS Staging 的同
+revision OIDC 探针、外部 adapter 和连续 5 日 staging 演练仍未完成；远程 MySQL 12+3
 已在 2026-07-23 重新通过，但生产主库仍需从 `0004` 维护升级到 `0018`。产品库已新增独立的 fail-closed schema change job：先做只读
 revision/表数预检，正式执行必须提供备份证据 hash、变更单、维护窗口、runtime 停止和不自动
 downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含凭据的 hash-only manifest。真正产品库
@@ -506,7 +512,7 @@ downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含�
 开关继续关闭，Sprint 7 仍为进行中。已按哈希锁文件补齐全仓库运行依赖，并在开发依赖中声明
 `pytest-asyncio`；生产日历/行情与 runtime strict assembly 落地后，直接按
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
-`915 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
+`922 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
 `6335 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有

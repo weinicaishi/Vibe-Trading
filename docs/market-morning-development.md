@@ -310,6 +310,35 @@ Action 注入的运营 roles、退出、停用与账户删除后的撤权。
 [Auth0ClientOptions](https://auth0.github.io/auth0-spa-js/interfaces/Auth0ClientOptions.html) 与
 [LogoutOptions](https://auth0.github.io/auth0-spa-js/interfaces/LogoutOptions.html) 的官方合同。
 
+#### Alpha A 本地 Auth0 / MySQL 联调
+
+真实 Auth0 的本地回调必须从 `http://localhost:5173` 发起；`localhost` 与 `127.0.0.1`
+在 Auth0 Allowed Callback URLs 中不是同一个 origin。后端仍只绑定 `127.0.0.1`。为了防止本地浏览器
+联调误读 `~/.vibe-trading/.env` 中的产品数据库，Alpha A 不直接运行普通 `uvicorn` 或
+`scripts/dev up`，而使用 fail-closed 入口：
+
+```bash
+# agent/.env 同时配置产品 URL 和独立、库名含 staging 的 Alpha A URL
+VIBE_MARKET_MORNING_DATABASE_URL=mysql+asyncmy://...
+VIBE_MARKET_MORNING_STAGING_DATABASE_URL=mysql+asyncmy://...
+
+# 只检查隔离目标；不会打印 URL、主机、库名或凭据
+PYTHONPATH=agent .venv/bin/python -m src.market_morning.alpha_a_dev_cli --check-only
+
+# 后端固定 loopback:8898，并强制 runtime disabled
+PYTHONPATH=agent .venv/bin/python -m src.market_morning.alpha_a_dev_cli
+
+# 另一个终端启动前端；浏览器必须打开 http://localhost:5173
+cd frontend
+VITE_API_URL=http://127.0.0.1:8898 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
+```
+
+启动器使用 python-dotenv 解析 `agent/.env`，因此密码中的 `#` 必须按数据库 URL 规则进行 percent
+encoding，但不会被 shell 的注释语义截断。它拒绝缺失的 staging URL、非 MySQL URL、库名不含
+`staging`、与产品目标相同或非 loopback 的目标，并无条件把 durable runtime 关闭。该联调仍固定
+`counts_as_staging_day=false`，不能代替非 localhost HTTPS Staging、授权数据、邮件、监控或连续五个
+JPX 交易日证据。
+
 底层仍保留 provider-neutral 的 OIDC lifecycle 端口。非 Auth0 部署侧必须在 React `createRoot` 之前注册产品与
 运营两个隔离 scope 的 SDK wrapper；核心会在任何私有 API Provider／运营数据请求挂载前等待
 `initialize()`，并在每次请求前调用 `getAccessToken()`。登录和登出只接受同源、无 fragment 的相对
