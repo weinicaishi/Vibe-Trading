@@ -367,6 +367,11 @@ Alpha A 启动器还会在五项 `VIBE_MARKET_MORNING_PUBLIC_*` 未写入 `agent
 启动器 fail closed。Vite 开发代理必须转发 `/market-morning/runtime-config`，以便本地页面也先走
 与生产相同的 runtime-config 链路；开发 fallback 只用于后端不可用时的诊断兼容。
 
+若 macOS 已配置系统 HTTP 代理，Python `requests` 可能自动读取系统代理并把测试中的
+`127.0.0.1` MCP 请求转发出去，表现为本机服务已监听但初始化请求返回 502。整仓测试时只对命令
+显式设置 `NO_PROXY=127.0.0.1,localhost`（同时设置小写 `no_proxy`）即可；不得因此关闭线上 egress
+控制或扩大生产网络白名单。
+
 底层仍保留 provider-neutral 的 OIDC lifecycle 端口。非 Auth0 部署侧必须在 React `createRoot` 之前注册产品与
 运营两个隔离 scope 的 SDK wrapper；核心会在任何私有 API Provider／运营数据请求挂载前等待
 `initialize()`，并在每次请求前调用 `getAccessToken()`。登录和登出只接受同源、无 fragment 的相对
