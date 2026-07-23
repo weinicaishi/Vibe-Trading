@@ -26,7 +26,7 @@
 
 - Market Morning 普通后端回归：直接按 `agent/tests/test_market_morning_*.py` 运行得到 `922 passed, 15 skipped`；15 项仅因普通命令未显式授权两套专用数据库写入。专用远程 MySQL 8 的业务 acceptance 为 `12/12 passed`，其中 schema/session 场景已覆盖 access-token hash 的幂等首见、精确注销、不可复活与多 token 隔离；destructive migration 为 `3/3 passed`。两份 manifest 均为 `environment=ci` 且固定不计 staging/T1。
 - SQL 交付包：`market_morning_schema_0018.sql` 已直接导入 MySQL 8 空库，核对为 34 张业务表、精确 `0018_market_morning_auth_sessions` revision、`varchar(64)` 版本字段及 `utf8mb4_ja_0900_as_cs`。
-- Vibe-Trading 整仓后端：在不包含任何真实 `.env` 的干净副本中运行 `agent/tests`，得到 `6335 passed, 25 skipped`、无失败或错误。25 项 skip 均为已登记的 MySQL／合成因子／Tushare 前置条件。CI 环境变量 Gate 通过，仅保留一条既有 `os.environ.pop()` 非阻断 warning。
+- Vibe-Trading 整仓后端：release CI 在不包含任何真实 `.env` 的干净 runner 中运行 `agent/tests`，得到 `6354 passed, 25 skipped`、无失败或错误。25 项 skip 均为已登记的 MySQL／合成因子／Tushare 前置条件。CI 环境变量 Gate 与语法检查通过。
 - T0 合成演练：12/12 通过，证据位于 `docs/evidence/market-morning/t0-local-synthetic-2026-07-21.json`，固定不计为 staging 日。
 - 前端：342 项测试通过，TypeScript 与 production build 通过；覆盖 product/operator lifecycle 并发初始化、官方 Auth0 SDK 配置/PKCE/memory cache/callback 清理/revoke/logout、无 bearer 的无凭据开发诊断、401、初始化失败重试、邮件深链认证后兑换时序，以及 Demo 只能在 development 启用、状态变更和完整 API 代理路径。
 - 容器运行时：`docker compose --profile market-morning build market-morning-runtime` 已从干净源码真实构建成功，容器内前端 build 与哈希锁定 Python 安装均通过；镜像以 uid 1000 的非 root `vibe` 用户运行，`asyncmy` 和最终 production runtime factory 可导入。worker service 显式禁用共享 API 镜像的 `:8899/live` healthcheck；禁用态容器以 exit 2 和稳定 `market_morning_disabled` 错误码拒绝启动。容器内只读 schema probe 对产品库返回 `Market Morning database schema is not current`，对 acceptance 库返回 `ready`；清空 provider bundle factory 后正式 CLI 以稳定 `production_provider_bundle_factory_missing` 拒绝启动，未运行采集、模型或邮件任务。
