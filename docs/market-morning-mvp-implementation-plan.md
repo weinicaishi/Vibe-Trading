@@ -514,7 +514,7 @@ downgrade 的显式确认；升级后精确校验 `0018`/34 表并输出不含�
 `agent/tests/test_market_morning_*.py` 运行的 Market Morning 普通回归为
 `922 passed, 15 skipped`。按 CI 约定排除独立 `e2e_backtest` 和真实 LLM 专用
 `test_e2e_harness_v2.py` 的正常本机权限整仓 JUnit 结果为
-`6335 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 已通过，仅有一条既有非阻断 warning。这些结果仍不能替代真实 MySQL、
+`6354 passed, 25 skipped`，无失败或错误；25 项 skip 均有登记的外部前置条件。CI 环境变量 Gate 与语法检查已通过。这些结果仍不能替代真实 MySQL、
 授权数据源或 staging 证据。仓库级 Ruff 仍有上游既有
 lint 债务；Market Morning 范围 Ruff 已通过，两个范围必须分别记录。
 指标出口与运营摘要共用同一隐私安全 read model，输出健康度、告警、来源状态、job／brief／投递／
